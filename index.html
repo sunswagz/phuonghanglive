@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PHUONGHANG LIVE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600&family=Be+Vietnam+Pro:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --stage:#0B0B0F; --riser:#13131A; --riser-2:#1C1C25; --rule:#26262F;
+  --ink:#EDEDF0; --dim:#8A8A99; --faint:#55555F;
+  --gold:#D4AF37; --gold-soft:rgba(212,175,55,.13);
+  --live:#E23B3B; --verify:#3B82F6;
+  --sidebar:248px; --rail:64px; --panel:400px;
+  /* chuyển động — một bộ đường cong duy nhất cho cả app */
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --t-fast:.16s; --t-base:.26s; --t-slow:.4s;
+  --display:'Oswald',system-ui,sans-serif;
+  --body:'Be Vietnam Pro',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{background:var(--stage);color:var(--ink);font-family:var(--body);font-size:14px;
+  line-height:1.55;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+iframe{border:0}
+h2{font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:.03em}
+h3{font-family:var(--display);font-weight:400;font-size:15px;letter-spacing:.02em;line-height:1.3}
+.eyebrow{font-family:var(--display);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--faint)}
+.mono{font-family:var(--mono);font-size:11px}
+.muted{color:var(--dim)}
+
+/* ══ SHELL ══ */
+#shell{height:100dvh;display:flex;position:relative}
+
+/* Sidebar — desktop */
+#side{width:var(--sidebar);flex-shrink:0;border-right:1px solid var(--rule);
+  background:var(--stage);display:flex;flex-direction:column;overflow-y:auto;z-index:30}
+#side::-webkit-scrollbar{width:4px}
+#side::-webkit-scrollbar-thumb{background:var(--rule)}
+#side .logo{font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:.16em;padding:22px 20px 16px}
+#side .logo b{color:var(--gold)}
+#side .search{margin:0 16px 16px;display:flex;align-items:center;gap:9px;background:var(--riser-2);
+  border:1px solid var(--rule);border-radius:10px;padding:9px 12px}
+#side .search input{flex:1;background:none;border:none;color:var(--ink);font:inherit;font-size:12.5px;outline:none}
+#side .search input::placeholder{color:var(--faint)}
+#side .search svg{width:16px;height:16px;color:var(--faint)}
+#side nav{display:flex;flex-direction:column;padding:0 10px}
+#side nav button{display:flex;align-items:center;gap:13px;padding:11px 12px;border-radius:10px;
+  color:var(--dim);font-size:14px;text-align:left;position:relative;transition:background .15s,color .15s}
+#side nav button:hover{background:var(--riser)}
+#side nav button[aria-current="page"]{color:var(--gold);background:var(--gold-soft);font-weight:500}
+#side nav button .dot{width:6px;height:6px;border-radius:50%;background:var(--live);margin-left:auto}
+#side .sep{height:1px;background:var(--rule);margin:14px 20px}
+#side .foot{margin-top:auto;padding:18px 20px;font-size:11px;color:var(--faint);line-height:1.7}
+
+/* Vùng chính */
+#main{flex:1;position:relative;overflow:hidden;min-width:0}
+.view{position:absolute;inset:0;display:none;overflow-y:auto;overscroll-behavior:contain}
+.view.on{display:block;animation:viewIn var(--t-base) var(--ease-out)}
+@keyframes viewIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* phản hồi khi bấm — Apple: mọi thứ chạm được đều phải lún xuống */
+button:active,.card:active,.row:active,.clip:active{transform:scale(.977)}
+button,.card,.row,.clip{transition:transform var(--t-fast) var(--ease-out),
+  background var(--t-fast) var(--ease-out),border-color var(--t-fast) var(--ease-out),
+  color var(--t-fast) var(--ease-out)}
+/* skeleton khi chưa có dữ liệu — Linear: không bao giờ hiện khung rỗng */
+.skel{background:linear-gradient(90deg,var(--riser) 25%,var(--riser-2) 50%,var(--riser) 75%);
+  background-size:200% 100%;animation:shim 1.4s linear infinite;border-radius:8px}
+@keyframes shim{to{background-position:-200% 0}}
+.wrap{max-width:920px;margin:0 auto;padding:26px 24px 60px}
+
+/* Bottom nav — mobile */
+#tabs{display:none}
+
+/* ══ Thành phần dùng chung ══ */
+.livepill{display:inline-flex;align-items:center;gap:7px;background:var(--live);color:#fff;
+  font-family:var(--display);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  padding:5px 10px;border-radius:999px;font-weight:600}
+.livepill i{width:6px;height:6px;border-radius:50%;background:#fff;animation:beat 1.9s ease-out infinite}
+@keyframes beat{0%{box-shadow:0 0 0 0 rgba(226,59,59,.6)}70%{box-shadow:0 0 0 7px rgba(226,59,59,0)}100%{box-shadow:0 0 0 0 rgba(226,59,59,0)}}
+.srcpill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;
+  color:var(--dim);background:rgba(0,0,0,.62);padding:4px 9px;border-radius:999px}
+.chip{font-family:var(--mono);font-size:10.5px;color:var(--faint);border:1px solid var(--rule);
+  border-radius:8px;padding:4px 9px}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;
+  border-radius:12px;font-family:var(--display);font-weight:600;font-size:13px;
+  letter-spacing:.1em;text-transform:uppercase;min-height:46px}
+.btn-gold{background:var(--gold);color:#0B0B0F}
+.btn-ghost{border:1px solid var(--rule);color:var(--ink)}
+.btn-block{width:100%}
+.frame{position:relative;aspect-ratio:16/9;background:#000;overflow:hidden;border-radius:12px}
+.frame>div:first-child,.frame iframe{position:absolute;inset:0;width:100%;height:100%}
+.frame .ov{position:absolute;z-index:3;pointer-events:none}
+.frame .tl{top:11px;left:11px}.frame .tr{top:11px;right:11px}.frame .bl{bottom:11px;left:11px}
+
+/* Cảnh báo nguồn ngoài */
+#warn{display:none;margin:0 0 18px;padding:14px 16px;border:1px solid rgba(226,59,59,.32);
+  background:rgba(226,59,59,.07);border-radius:12px;font-size:12.5px;color:var(--dim);line-height:1.65}
+#warn.on{display:block}
+#warn.info{border-color:rgba(212,175,55,.3);background:rgba(212,175,55,.06)}
+#warn.info b{color:var(--gold)}
+#warn b{color:var(--live);font-weight:500;display:block;margin-bottom:5px}
+#warn code{font-family:var(--mono);font-size:11px;background:var(--riser-2);
+  padding:2px 6px;border-radius:5px;color:var(--ink)}
+#warn .fix{margin-top:10px;padding-top:10px;border-top:1px solid rgba(226,59,59,.2)}
+#warn .fix ol{margin:6px 0 0 16px}
+#warn .fix li{margin-bottom:3px}
+#warn a{color:var(--gold)}
+/* trạng thái trình phát: LOADING · READY · ERROR */
+.pstate{position:absolute;inset:0;z-index:4;display:none;place-items:center;
+  background:linear-gradient(150deg,#191921,#0b0b10);text-align:center;padding:20px}
+.frame.loading .pstate.load,.frame.error .pstate.err{display:grid}
+.pstate .sp{width:26px;height:26px;border:2px solid var(--rule);border-top-color:var(--gold);
+  border-radius:50%;animation:spin .9s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.pstate .code{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-bottom:8px}
+.pstate h4{font-family:var(--display);font-weight:400;font-size:15px;margin-bottom:6px}
+.pstate p{font-size:12.5px;color:var(--dim);max-width:38ch;margin:0 auto}
+.pstate .out{display:inline-flex;align-items:center;gap:7px;margin-top:14px;padding:9px 16px;
+  border:1px solid var(--rule);border-radius:999px;font-size:12px;color:var(--ink)}
+
+/* ══ TRANG CHỦ ══ */
+.hero{border:1px solid var(--rule);border-radius:16px;overflow:hidden;background:var(--riser)}
+.hero .info{padding:16px 18px}
+.hero .info p{color:var(--dim);font-size:13px;margin-top:5px}
+.hero .info .btn{margin-top:14px}
+section.band{margin-top:34px}
+.band-head{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:12px}
+.band-head button{font-family:var(--mono);font-size:11px;color:var(--gold)}
+.rail-x{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scroll-snap-type:x proximity}
+.rail-x::-webkit-scrollbar{height:4px}
+.rail-x::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px}
+.clip{flex:0 0 142px;scroll-snap-align:start;cursor:pointer}
+.clip .th{aspect-ratio:9/16;border-radius:12px;overflow:hidden;position:relative;
+  background:linear-gradient(155deg,#20202b,#0e0e14);border:1px solid var(--rule);display:grid;place-items:center}
+.clip .th .n{font-family:var(--display);font-size:24px;color:#3a3a48}
+.clip .th .len{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.68);padding:2px 6px;
+  border-radius:6px;font-family:var(--mono);font-size:9.5px}
+.clip .th .heat{position:absolute;left:9px;right:9px;bottom:9px;display:flex;gap:1.5px;height:13px;align-items:flex-end}
+.clip .th .heat i{flex:1;background:rgba(212,175,55,.55);border-radius:1px;min-height:2px}
+.clip p{font-size:12px;margin-top:8px;line-height:1.35;color:var(--dim)}
+.row{display:grid;grid-template-columns:132px 1fr;gap:14px;padding:13px 0;
+  border-bottom:1px solid var(--rule);cursor:pointer;align-items:start}
+.row .th{aspect-ratio:16/9;border-radius:10px;background:linear-gradient(150deg,#20202b,#0e0e14);
+  position:relative;border:1px solid var(--rule)}
+.row .th .len{position:absolute;bottom:5px;right:5px;background:rgba(0,0,0,.72);padding:2px 5px;
+  border-radius:5px;font-family:var(--mono);font-size:9.5px}
+.row .meta{display:flex;gap:10px;margin-top:6px;font-family:var(--mono);font-size:10.5px;color:var(--faint);flex-wrap:wrap}
+
+/* ══ VIDEO — feed dọc kiểu TikTok ══ */
+#video{overflow:hidden;display:none}
+#video.on{display:flex;flex-direction:column}
+.modes{display:flex;gap:4px;padding:14px 24px 0;flex-shrink:0}
+.modes button{padding:8px 16px;border-radius:999px;font-family:var(--display);font-size:12px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--faint);border:1px solid var(--rule)}
+.modes button[aria-selected="true"]{color:var(--gold);background:var(--gold-soft);border-color:rgba(212,175,55,.32)}
+
+#feedWrap{flex:1;overflow:hidden;position:relative}
+.feed{height:100%;overflow-y:auto;scroll-snap-type:y mandatory;overscroll-behavior:contain}
+.feed::-webkit-scrollbar{display:none}
+.slide{height:100%;scroll-snap-align:start;scroll-snap-stop:always;
+  display:grid;place-items:center;padding:14px 0}
+.unit{display:flex;align-items:flex-end;gap:14px}
+.vplayer{position:relative;height:min(88dvh,860px);aspect-ratio:9/16;overflow:hidden;
+  border-radius:14px;background:#000}
+.vplayer .crop{position:absolute;inset:0;overflow:hidden}
+.vplayer .crop>div,.vplayer .crop iframe{position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);width:auto;height:100%;aspect-ratio:16/9;min-width:100%}
+.vplayer .veil{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top,rgba(0,0,0,.85) 0%,transparent 34%)}
+.vplayer .tap{position:absolute;inset:0;z-index:2}
+.vplayer .cap{position:absolute;left:18px;right:18px;bottom:20px;z-index:4;text-shadow:0 1px 8px rgba(0,0,0,.85)}
+.vplayer .cap .core{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.vplayer .cap .core b{font-size:13.5px;font-weight:600}
+.vplayer .cap .core .tick{color:var(--verify)}
+.vplayer .cap h3{font-size:15px;margin-bottom:4px}
+.vplayer .cap p{font-size:12.5px;color:#c5c5ce;line-height:1.45}
+.vplayer .cap .from{display:block;font-family:var(--mono);font-size:10.5px;color:var(--gold);margin-top:7px}
+.vplayer .cap .full{display:inline-flex;align-items:center;gap:6px;margin-top:11px;padding:8px 15px;
+  border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  font-size:12px;backdrop-filter:blur(8px)}
+.vplayer .prog{position:absolute;left:0;right:0;bottom:0;height:2.5px;background:rgba(255,255,255,.16);z-index:5}
+.vplayer .prog i{display:block;height:100%;background:var(--gold);width:0}
+
+.arail{width:var(--rail);display:flex;flex-direction:column;align-items:center;gap:18px;padding-bottom:14px}
+.arail .mark{width:46px;height:46px;border-radius:50%;border:2px solid var(--gold);
+  background:linear-gradient(150deg,#2a2a36,#16161e);display:grid;place-items:center;
+  font-family:var(--display);font-weight:600;font-size:14px;color:var(--gold);cursor:pointer}
+.arail button{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--ink)}
+.arail button .ic{width:46px;height:46px;border-radius:50%;background:var(--riser-2);
+  display:grid;place-items:center;transition:background .15s}
+.arail button:hover .ic{background:#2a2a36}
+.arail button small{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.arail button.verify .ic{color:var(--verify)}
+.arail button.gold .ic{color:var(--gold)}
+
+/* ══ MINI PLAYER — buổi phát đi theo bạn (Spotify) ══
+   Khung phát nằm ngoài .view và định vị bằng toạ độ, nên chuyển
+   giữa sân khấu và góc màn hình KHÔNG nạp lại iframe. */
+#stagePlayer{position:fixed;z-index:36;background:#000;border-radius:var(--r-player);
+  overflow:hidden;transition:all var(--t-slow) var(--ease);box-shadow:0 8px 40px rgba(0,0,0,.5)}
+#stagePlayer.hidden{opacity:0;pointer-events:none;transform:scale(.96)}
+#stagePlayer .hold{position:absolute;inset:0}
+#stagePlayer .hold iframe,#stagePlayer .hold>div{position:absolute;inset:0;width:100%;height:100%}
+#stagePlayer .ovl{position:absolute;z-index:3;pointer-events:none}
+#stagePlayer .ovl.tl{top:11px;left:11px}
+#stagePlayer .ovl.tr{top:11px;right:11px}
+#stagePlayer .ovl.bl{bottom:11px;left:11px}
+#stagePlayer.mini .ovl.tr,#stagePlayer.mini .ovl.bl{display:none}
+#stagePlayer.mini .ovl.tl{top:7px;left:7px;transform:scale(.85);transform-origin:top left}
+#stagePlayer .minibar{position:absolute;left:0;right:0;bottom:0;z-index:4;display:none;
+  align-items:center;gap:8px;padding:7px 9px;background:linear-gradient(transparent,rgba(0,0,0,.9))}
+#stagePlayer.mini .minibar{display:flex}
+#stagePlayer .minibar .t{flex:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff}
+#stagePlayer .minibar button{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.14);
+  display:grid;place-items:center;color:#fff;flex-shrink:0}
+#stagePlayer .minibar svg{width:14px;height:14px}
+/* chỗ giữ nhịp trong trang khi khung phát đang bay ra ngoài */
+.slot{position:relative;aspect-ratio:16/9;border-radius:var(--r-player);
+  background:var(--riser);border:1px dashed var(--rule);display:grid;place-items:center}
+.slot .back{font-size:12.5px;color:var(--faint);text-align:center;padding:16px}
+.slot.filled{border-style:solid;border-color:transparent;background:#000}
+.slot.filled .back{display:none}
+
+/* ══ Tiếp tục xem (Netflix) ══ */
+.progline{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.16)}
+.progline i{display:block;height:100%;background:var(--gold)}
+.resume{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
+  font-size:10px;color:var(--gold)}
+
+/* ══ Khung phát — MẶC ĐỊNH 9:16 ══
+   Video 16:9 trong khung 9:16 → chỉ có viền đen trên dưới, KHÔNG mất gì.
+   Video 9:16 trong khung 16:9 → bị cắt hai bên, MẤT nội dung.
+   Khi chưa chắc khổ hình nguồn, chọn khung không làm mất gì. */
+.slot.embed{aspect-ratio:9/16;width:100%;background:#000;
+  border-style:solid;border-color:transparent}
+.slot.embed.wide{aspect-ratio:16/9}
+/* Ô chứa video phải có chiều rộng tự thân — nếu để auto trong lưới nó xẹp về 0 */
+.theater.stage-portrait{grid-template-columns:min(440px,100%) auto;
+  justify-content:center;align-items:end;gap:16px}
+.theater.stage-portrait>div:first-child{width:100%;min-width:0}
+.theater.stage-portrait .arail{padding-bottom:0;gap:14px}
+.theater.stage-portrait .arail .ic{width:42px;height:42px}
+.theater.stage-portrait .arail .mark{width:42px;height:42px;font-size:13px}
+@media (max-width:899px){
+  .theater.stage-portrait{grid-template-columns:1fr}
+}
+
+/* ══ TIN — cấu trúc kiểu Facebook, giữ bảng màu tối của app ══ */
+.fb-head{border:1px solid var(--rule);border-radius:16px;overflow:hidden;
+  background:var(--riser);margin-bottom:20px}
+.fb-cover{aspect-ratio:2.7/1;background:linear-gradient(120deg,#2a2028,#1a1520 60%,#241c26);
+  position:relative}
+.fb-cover img{width:100%;height:100%;object-fit:cover;display:block}
+.fb-id{display:flex;align-items:flex-end;gap:16px;padding:0 22px 16px;margin-top:-42px}
+.fb-ava{width:92px;height:92px;border-radius:50%;border:4px solid var(--riser);
+  background:linear-gradient(150deg,#4a3a44,#241c26);flex-shrink:0;object-fit:cover;
+  display:grid;place-items:center;font-family:var(--display);font-size:24px;color:var(--gold)}
+.fb-id .who h2{font-size:23px;color:#fff;letter-spacing:0;font-family:var(--body);font-weight:600}
+.fb-id .who .sub{color:var(--dim);font-size:13px;margin-top:3px}
+.fb-tabs{display:flex;gap:4px;padding:0 14px;border-top:1px solid var(--rule)}
+.fb-tabs button{padding:14px 16px;font-size:14px;font-weight:500;color:var(--dim);
+  border-bottom:3px solid transparent;margin-bottom:-1px}
+.fb-tabs button.on{color:var(--gold);border-bottom-color:var(--gold)}
+
+.fb-post{border:1px solid var(--rule);border-radius:14px;background:var(--riser);
+  margin-bottom:16px;overflow:hidden}
+.fb-post .top{display:flex;align-items:center;gap:10px;padding:13px 15px}
+.fb-post .top .av{width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(150deg,#4a3a44,#241c26);display:grid;place-items:center;
+  font-family:var(--display);font-size:13px;color:var(--gold)}
+.fb-post .top .n{font-size:14.5px;font-weight:600;color:#fff;display:flex;align-items:center;gap:5px}
+.fb-post .top .t{font-size:12.5px;color:var(--dim);display:flex;align-items:center;gap:5px;margin-top:1px}
+.fb-post .body{padding:0 15px 12px;font-size:15px;line-height:1.5;color:#e4e6eb;white-space:pre-wrap}
+.fb-post .media{background:#000;display:block;width:100%}
+.fb-post .media img{width:100%;display:block}
+.fb-post .media .ph{aspect-ratio:1/1;display:grid;place-items:center;text-align:center;padding:30px;
+  background:linear-gradient(165deg,#111827,#0b1220 55%,#1a1430);color:#fff}
+.fb-post .media .ph b{font-size:clamp(19px,3.4vw,27px);font-weight:700;line-height:1.35;
+  text-shadow:0 2px 14px rgba(0,0,0,.7)}
+.fb-post .counts{display:flex;align-items:center;gap:7px;padding:11px 15px;
+  border-bottom:1px solid var(--rule);font-size:13px;color:var(--dim)}
+.fb-post .counts .rx{display:flex}
+.fb-post .counts .rx i{width:18px;height:18px;border-radius:50%;display:inline-grid;
+  place-items:center;font-size:10px;border:2px solid var(--riser);margin-left:-5px}
+.fb-post .counts .rx i:first-child{margin-left:0}
+.fb-post .counts .right{margin-left:auto;display:flex;gap:12px}
+.fb-post .acts2{display:flex;padding:4px 8px}
+.fb-post .acts2 button{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px;border-radius:8px;color:var(--dim);font-size:14px;font-weight:500}
+.fb-post .acts2 button:hover{background:rgba(255,255,255,.05)}
+.fb-post .acts2 svg{width:18px;height:18px}
+.fb-post .cmts{padding:6px 15px 14px;border-top:1px solid var(--rule)}
+.fb-post .cmts .more{font-size:13px;color:var(--dim);font-weight:500;padding:8px 0;display:block}
+.fb-cmt{display:flex;gap:8px;margin-top:9px}
+.fb-cmt .av{width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(150deg,#3a3a48,#22222c);display:grid;place-items:center;
+  font-size:11px;color:var(--dim);font-weight:600}
+.fb-cmt .bub{background:var(--riser-2);border-radius:16px;padding:8px 12px;min-width:0}
+.fb-cmt .bub .n{font-size:13px;font-weight:600;color:#fff;margin-bottom:2px}
+.fb-cmt .bub .x{font-size:13.5px;color:#e4e6eb;line-height:1.45;word-break:break-word}
+.fb-cmt .bub .x a{color:#4a9eff}
+.fb-cmt .tag{font-size:11px;color:var(--gold);margin-bottom:3px}
+.fb-cmt .t2{font-size:11.5px;color:var(--faint);margin-top:4px;padding-left:12px}
+
+/* ══ KHO LƯU — lưới kiểu YouTube ══ */
+a{color:inherit;text-decoration:none}          /* khử kiểu link mặc định */
+.yt-grid{display:grid;gap:16px 16px;
+  grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.yt{display:block;cursor:pointer}
+.yt .thumb{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;
+  background:#1c1c22;transition:border-radius var(--t-fast) var(--ease-out)}
+.yt:hover .thumb{border-radius:4px}
+.yt .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.yt .thumb .ph{position:absolute;inset:0;display:grid;place-items:center;
+  background:radial-gradient(ellipse at 50% 45%,#2b2b34,#141419)}
+.yt .thumb .ph svg{width:34px;height:34px;color:#4a4a56;stroke-width:1.4}
+.yt .dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.82);
+  color:#fff;font-size:12px;font-weight:500;line-height:1;padding:3px 5px;border-radius:4px;
+  font-variant-numeric:tabular-nums}
+.yt .seen{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.28)}
+.yt .seen i{display:block;height:100%;background:#f00}
+.yt .info{display:flex;gap:12px;padding-top:12px}
+.yt .ava{width:36px;height:36px;border-radius:50%;flex-shrink:0;object-fit:cover;
+  background:linear-gradient(150deg,#3a3a48,#22222c)}
+.yt .txt{min-width:0}
+.yt .ttl{color:#fff;font-size:14px;font-weight:500;line-height:1.42;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  margin-bottom:5px}
+.yt .chan-nm{color:#aaa;font-size:12.5px;line-height:1.5}
+.yt .chan-nm:hover{color:#fff}
+.yt .meta2{color:#aaa;font-size:12.5px;line-height:1.5}
+.yt-tabs{display:flex;gap:9px;margin-bottom:20px;flex-wrap:wrap}
+.yt-tabs button{padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;
+  background:rgba(255,255,255,.08);color:#fff;border:none}
+.yt-tabs button.on{background:#fff;color:#0f0f0f}
+
+/* ══ BẢN ĐỒ KÊNH ══ */
+.statusbar{display:flex;align-items:center;gap:13px;padding:15px 17px;border-radius:14px;
+  margin-bottom:20px;border:1px solid var(--rule);background:var(--riser)}
+.statusbar.on{border-color:rgba(226,59,59,.42);background:rgba(226,59,59,.07)}
+.statusbar.off{border-color:rgba(212,175,55,.3);background:var(--gold-soft)}
+.statusbar .big{font-family:var(--display);font-size:16px;letter-spacing:.02em}
+.statusbar .sub{font-size:12.5px;color:var(--dim);margin-top:3px}
+.statusbar .go{margin-left:auto}
+
+.chan{display:grid;grid-template-columns:auto 1fr auto;gap:13px;align-items:center;
+  padding:14px 15px;border:1px solid var(--rule);border-radius:14px;margin-bottom:10px;
+  background:var(--riser);transition:border-color var(--t-base) var(--ease-out)}
+.chan.live{border-color:rgba(226,59,59,.45);background:rgba(226,59,59,.05)}
+.chan.dead{opacity:.5}
+.chan .plat{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+  font-family:var(--display);font-size:13px;font-weight:600;flex-shrink:0}
+.chan .nm{font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.chan .tick{color:var(--verify);display:inline-flex}
+.chan .st{font-size:12px;color:var(--dim);margin-top:3px}
+.chan .st.livetxt{color:var(--live);font-weight:500}
+.chan .act{flex-shrink:0}
+.chan .watch{padding:9px 15px;border-radius:10px;background:var(--gold);color:#0B0B0F;
+  font-family:var(--display);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;font-weight:600}
+.chan .muted-act{padding:9px 13px;border-radius:10px;border:1px solid var(--rule);
+  font-size:11.5px;color:var(--faint)}
+
+.alert{display:flex;gap:11px;padding:13px 15px;border-radius:12px;margin-bottom:18px;
+  border:1px solid rgba(226,59,59,.35);background:rgba(226,59,59,.08);font-size:12.5px;line-height:1.6;
+  animation:viewIn var(--t-base) var(--ease-out)}
+.alert b{color:var(--live)}
+.warnbox{padding:13px 15px;border-radius:12px;border:1px solid var(--rule);
+  background:var(--riser);font-size:12.5px;color:var(--dim);line-height:1.65;margin-top:18px}
+.warnbox b{color:var(--ink)}
+.demo{margin-top:26px;padding:14px 16px;border:1px dashed var(--rule);border-radius:12px;
+  font-size:12px;color:var(--faint);line-height:1.7}
+.demo button{margin-top:9px;padding:8px 14px;border:1px solid var(--rule);border-radius:9px;
+  font-size:12px;color:var(--ink)}
+
+/* ══ STUDIO — chỉ Chủ Thể thấy ══ */
+.studio-bar{display:flex;align-items:center;gap:12px;padding:13px 16px;margin-bottom:20px;
+  border:1px solid rgba(226,59,59,.3);background:rgba(226,59,59,.06);border-radius:12px}
+.studio-bar .who{font-size:12.5px;color:var(--dim)}
+.studio-bar .who b{color:var(--ink)}
+.panic{margin-left:auto;padding:10px 16px;border-radius:10px;background:var(--live);color:#fff;
+  font-family:var(--display);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.panic.armed{background:var(--riser-2);color:var(--live);border:1px solid var(--live)}
+.phase{border:1px solid var(--rule);border-radius:12px;margin-bottom:12px;overflow:hidden;background:var(--riser)}
+.phase>summary{padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;list-style:none}
+.phase>summary::-webkit-details-marker{display:none}
+.phase .num{width:26px;height:26px;border-radius:50%;background:var(--riser-2);display:grid;
+  place-items:center;font-family:var(--mono);font-size:11px;color:var(--dim);flex-shrink:0}
+.phase[open] .num{background:var(--gold);color:#0B0B0F}
+.phase .nm{font-family:var(--display);font-size:15px;letter-spacing:.03em}
+.phase .when{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.phase .body{padding:0 16px 14px}
+.chk{display:flex;gap:11px;padding:9px 0;border-top:1px solid var(--rule);align-items:flex-start;cursor:pointer}
+.chk input{margin-top:3px;accent-color:var(--gold);width:15px;height:15px;flex-shrink:0}
+.chk .tx{font-size:13px;line-height:1.5}
+.chk .tx small{display:block;color:var(--faint);font-size:11.5px;margin-top:2px}
+.chk input:checked+.tx{color:var(--faint);text-decoration:line-through}
+.chk.blocker .tx small{color:var(--live)}
+.phase .prog{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-right:8px}
+.gatebox{max-width:440px;margin:0 auto;text-align:center;padding:34px 22px;
+  border:1px solid var(--rule);border-radius:16px;background:var(--riser)}
+
+/* ══ Panel phải ══ */
+#panel{width:0;flex-shrink:0;border-left:1px solid var(--rule);background:var(--riser);
+  display:flex;flex-direction:column;overflow:hidden;transition:width .28s cubic-bezier(.32,.72,0,1);z-index:35}
+#panel.on{width:var(--panel)}
+#panel .ph{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;
+  border-bottom:1px solid var(--rule);flex-shrink:0}
+#panel .ptabs{display:flex;gap:3px;padding:12px 14px 0;flex-shrink:0}
+#panel .ptabs button{padding:7px 12px;border-radius:8px;font-family:var(--display);font-size:11px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+#panel .ptabs button[aria-selected="true"]{color:var(--gold);background:var(--gold-soft)}
+#panel .pb{flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:15px}
+#panel .pb::-webkit-scrollbar{width:4px}
+#panel .pb::-webkit-scrollbar-thumb{background:var(--rule);border-radius:2px}
+#panel .pf{padding:12px 16px;border-top:1px solid var(--rule);flex-shrink:0;display:flex;gap:9px}
+#panel .pf input{flex:1;background:var(--riser-2);border:1px solid var(--rule);border-radius:11px;
+  padding:11px 13px;color:var(--ink);font:inherit;font-size:13px}
+#panel .pf input::placeholder{color:var(--faint)}
+#panel .pf button{padding:0 16px;background:var(--gold);color:#0B0B0F;border-radius:11px;
+  font-family:var(--display);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+
+.entry{display:grid;grid-template-columns:auto 1fr;gap:11px}
+.entry .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(150deg,#33333f,#1e1e28);
+  display:grid;place-items:center;font-size:11.5px;color:var(--dim);font-weight:600;flex-shrink:0}
+.entry .l{display:flex;align-items:baseline;gap:8px;margin-bottom:3px;flex-wrap:wrap}
+.entry .l .n{font-weight:500;font-size:12.5px}
+.entry .l .t{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.entry .l .t.live{color:var(--gold)}
+.entry .x{font-size:13px;line-height:1.55}
+.entry .a{display:flex;gap:16px;margin-top:6px;font-size:11.5px;color:var(--faint)}
+.pinned{border-left:2px solid var(--gold);padding:10px 12px;background:var(--gold-soft);border-radius:0 10px 10px 0}
+.pinned .tagline{font-family:var(--display);font-size:9.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.quiet{color:var(--faint);font-size:12.5px;padding:16px 0;text-align:center}
+
+/* ══ TRỰC TIẾP / XEM LẠI ══ */
+.theater{display:grid;grid-template-columns:1fr var(--rail);gap:14px;align-items:end}
+.tl{margin-top:16px;padding:15px 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.tl-head .at{font-family:var(--mono);font-size:11px;color:var(--gold)}
+.density{display:flex;gap:1.5px;height:26px;align-items:flex-end;margin-bottom:8px}
+.density i{flex:1;background:var(--rule);border-radius:2px 2px 0 0;min-height:2px;
+  transition:background .16s;cursor:pointer}
+.density i.hot{background:rgba(212,175,55,.5)}
+.density i.here{background:var(--gold)}
+.scrub{width:100%;-webkit-appearance:none;appearance:none;height:3px;background:var(--rule);
+  border-radius:2px;outline:none}
+.scrub::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--gold);border:3px solid var(--stage)}
+.scrub::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--gold);border:3px solid var(--stage)}
+.marks{display:flex;gap:7px;overflow-x:auto;margin-top:12px;padding-bottom:2px}
+.marks::-webkit-scrollbar{display:none}
+.marks button{flex-shrink:0;padding:6px 12px;border:1px solid var(--rule);border-radius:999px;
+  font-size:11.5px;color:var(--dim)}
+.marks button.on{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+.audience{padding:15px 0;border-bottom:1px solid var(--rule);min-height:120px}
+.audience .h{display:flex;justify-content:space-between;margin-bottom:11px}
+.audience .msg{font-size:12.5px;line-height:1.5;margin-bottom:7px;animation:fade .3s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.audience .msg .at{font-family:var(--mono);font-size:10px;color:var(--faint);margin-right:7px}
+.audience .msg .nm{color:var(--gold);font-weight:500;margin-right:6px}
+
+/* ══ KHO LƯU ══ */
+.filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}
+.filters button{padding:7px 14px;border:1px solid var(--rule);border-radius:999px;font-size:12px;color:var(--dim)}
+.filters button.on{border-color:var(--gold);color:var(--gold);background:var(--gold-soft)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:16px}
+.card{border:1px solid var(--rule);border-radius:14px;overflow:hidden;background:var(--riser);cursor:pointer;transition:border-color .18s}
+.card:hover{border-color:rgba(212,175,55,.42)}
+.card .th{aspect-ratio:16/9;background:linear-gradient(150deg,#20202b,#0e0e14);position:relative;display:grid;place-items:center}
+.card .th .len{position:absolute;bottom:7px;right:7px;background:rgba(0,0,0,.75);padding:2px 6px;
+  border-radius:6px;font-family:var(--mono);font-size:9.5px}
+.card .b{padding:12px 13px}
+.card .b .meta{display:flex;gap:9px;margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--faint);flex-wrap:wrap}
+
+/* ══ TIN ══ */
+.post{border-bottom:1px solid var(--rule);padding:20px 0}
+.post .who{display:flex;align-items:center;gap:11px;margin-bottom:12px}
+.post .who .mark{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--gold);
+  background:linear-gradient(150deg,#2a2a36,#16161e);display:grid;place-items:center;
+  font-family:var(--display);font-weight:600;font-size:12px;color:var(--gold)}
+.post .who .n{font-weight:500;font-size:13.5px;display:flex;align-items:center;gap:6px}
+.post .who .t{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.post .txt{font-size:14.5px;line-height:1.68}
+.post .acts{display:flex;gap:24px;margin-top:14px;color:var(--faint)}
+.post .acts button{display:flex;align-items:center;gap:6px;font-size:12px}
+.post .acts svg{width:18px;height:18px}
+
+/* ══ TÀI KHOẢN ══ */
+.idcard{border:1px solid var(--rule);border-radius:16px;background:var(--riser);padding:30px 22px;text-align:center;max-width:440px;margin:0 auto}
+.idcard .av{width:66px;height:66px;border-radius:50%;margin:0 auto 14px;
+  background:linear-gradient(150deg,#2f2f3c,#1a1a22);display:grid;place-items:center;
+  font-family:var(--display);font-size:23px;color:var(--dim)}
+.menu{border:1px solid var(--rule);border-radius:14px;overflow:hidden;max-width:440px;margin:22px auto 0}
+.menu button{width:100%;display:flex;align-items:center;gap:13px;padding:15px 16px;
+  border-bottom:1px solid var(--rule);text-align:left;font-size:13.5px;min-height:50px}
+.menu button:last-child{border-bottom:none}
+.menu button .tail{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+/* ══ MOBILE ══ */
+@media (max-width:1023px){
+  #side{display:none}
+  #panel{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%!important;height:0;
+    border-left:none;border-top:1px solid var(--rule);border-radius:22px 22px 0 0;
+    transition:height .28s cubic-bezier(.32,.72,0,1)}
+  #panel.on{height:76dvh}
+  #tabs{display:grid;grid-template-columns:repeat(5,1fr);height:64px;
+    padding-bottom:env(safe-area-inset-bottom);flex-shrink:0;position:fixed;left:0;right:0;bottom:0;
+    background:rgba(11,11,15,.95);backdrop-filter:blur(16px);border-top:1px solid var(--rule);z-index:38}
+  #tabs button{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;color:var(--faint);position:relative}
+  #tabs button span{font-size:10px}
+  #tabs button[aria-current="page"]{color:var(--gold)}
+  #tabs .dot{position:absolute;top:9px;right:calc(50% - 17px);width:6px;height:6px;
+    border-radius:50%;background:var(--live);animation:beat 1.9s ease-out infinite}
+  #shell{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .wrap{padding:18px 16px 40px}
+  .modes{padding:12px 16px 0}
+  .unit{gap:0}
+  .vplayer{height:100%;width:100%;aspect-ratio:auto;border-radius:0}
+  .slide{padding:0}
+  .arail{position:absolute;right:10px;bottom:150px;width:auto;z-index:6;gap:16px;padding:0}
+  .arail .ic{width:42px;height:42px;background:rgba(0,0,0,.35)}
+  .vplayer .cap{right:76px;bottom:26px}
+  .theater{grid-template-columns:1fr;gap:0}
+  .theater .arail{position:static;flex-direction:row;justify-content:space-around;
+    width:100%;margin-top:14px;padding:0}
+  .row{grid-template-columns:112px 1fr}
+}
+@media (max-width:1279px) and (min-width:1024px){
+  :root{--sidebar:200px;--panel:340px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="shell">
+
+<!-- ══ SIDEBAR ══ -->
+<aside id="side">
+  <div class="logo">PHUONGHANG<b>·</b>LIVE</div>
+  <div class="search">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input placeholder="Tìm trong Hub">
+  </div>
+  <nav>
+    <button data-go="home" aria-current="page">
+      <svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Trang chủ</button>
+    <button data-go="live">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><path d="M6.3 6.3a8 8 0 000 11.4M17.7 17.7a8 8 0 000-11.4M3.5 3.5a12 12 0 000 17M20.5 20.5a12 12 0 000-17"/></svg>
+      Trực tiếp<span class="dot"></span></button>
+    <button data-go="video">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M10 9.5l5 2.5-5 2.5z"/></svg>Video</button>
+    <button data-go="news">
+      <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h8M8 17h5"/></svg>Tin</button>
+    <button data-go="archive">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 001 1h12a1 1 0 001-1V8M10 12h4"/></svg>Kho lưu</button>
+  </nav>
+  <div class="sep"></div>
+  <nav>
+    <button data-go="studio" id="navStudio" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M12 20h9M3 20h4M4 4h16v10H4zM9 20l1-6h4l1 6"/></svg>
+      Điều hành<span class="dot" style="background:var(--gold)"></span></button>
+    <button data-go="me">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0115 0"/></svg>Tài khoản</button>
+  </nav>
+  <div class="foot">Kênh đồng hành<br>không bỏ lỡ buổi phát nào</div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div id="main">
+
+<!-- TRANG CHỦ -->
+<section class="view on" id="home">
+  <div class="wrap">
+    <div id="alertBox"></div>
+
+    <div class="statusbar" id="statusbar">
+      <div>
+        <div class="big" id="stBig">Đang kiểm tra…</div>
+        <div class="sub" id="stSub">—</div>
+      </div>
+      <div class="go" id="stGo"></div>
+    </div>
+
+    <section class="band" style="margin-top:26px">
+      <div class="band-head"><h2>Kênh chính chủ</h2>
+        <span class="mono muted" id="chanCount">—</span></div>
+      <div id="chans"></div>
+    </section>
+
+    
+
+    <section class="band">
+      <div class="band-head"><h2>Buổi gần đây</h2><button data-go="archive">Kho lưu</button></div>
+      <div id="recent"></div>
+    </section>
+
+    <div class="demo" id="demoBox" style="display:none">
+      <b style="color:var(--dim)">Bản mẫu:</b> bấm nút dưới để mô phỏng kênh đang phát bị dừng
+      và xem app chuyển hướng người xem thế nào.
+      <div><button id="simDown">Mô phỏng kênh sập</button>
+      <button id="simUp" style="margin-left:8px">Đặt lại</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- TRỰC TIẾP -->
+<section class="view" id="live">
+  <div class="wrap">
+    <div id="liveAlert"></div>
+    <div class="theater">
+      <div>
+        <div class="slot" id="liveSlot">
+          <div class="back" id="slotBack">Chưa có kênh nào đang phát.<br>Xem lịch ở trang chủ.</div>
+        </div>
+      </div>
+      <div class="arail">
+        <div class="mark">PH</div>
+        <button class="gold" data-panel="chat"><span class="ic">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </span><small id="ccount">0</small></button>
+        <button><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg></span><small>Chia sẻ</small></button>
+      </div>
+    </div>
+    <div style="margin-top:18px">
+      <h2 id="lTitle">Chưa có buổi phát</h2>
+      <p class="muted" style="font-size:13px;margin-top:6px" id="lSub">
+        Phát bằng trình nhúng chính thức của nền tảng. App không lưu, không phát lại nội dung.</p>
+      <div class="chips" style="margin-top:12px">
+        <span class="chip" id="elapsed">00:00</span>
+        <span class="chip" id="platChip">—</span>
+      </div>
+      <div class="warnbox" style="margin-top:16px">
+        Bình luận dưới đây là của riêng app này. Kênh phát bị dừng thì bình luận vẫn còn.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VIDEO -->
+<section class="view" id="video">
+  <div class="modes" role="tablist">
+    <button role="tab" aria-selected="true" data-mode="explore">Khám phá</button>
+    <button role="tab" aria-selected="false" data-go="archive">Buổi diễn</button>
+  </div>
+  <div id="feedWrap"><div class="feed" id="feed"></div></div>
+</section>
+
+<!-- XEM LẠI -->
+<section class="view" id="replay">
+  <div class="wrap">
+    <div class="theater">
+      <div>
+        <div class="frame">
+          <div id="pReplay"></div>
+          <div class="pstate load"><div><div class="sp"></div></div></div>
+          <div class="pstate err"><div>
+            <div class="code" data-code>—</div>
+            <h4 data-title>Trình phát chưa sẵn sàng</h4>
+            <p data-msg></p>
+            <a class="out" data-out href="#" target="_blank" rel="noopener">Mở trên YouTube ↗</a>
+          </div></div>
+          <div class="ov bl"><span class="srcpill">▸ Nguồn: YouTube</span></div>
+        </div>
+      </div>
+      <div class="arail">
+        <div class="mark">PH</div>
+        <button class="gold" data-panel="replay"><span class="ic">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </span><small>27</small></button>
+        <button><span class="ic"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></span><small>Lưu</small></button>
+        <button><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg></span><small>Chia sẻ</small></button>
+      </div>
+    </div>
+
+    <div class="tl">
+      <div class="tl-head"><span class="eyebrow">Khán phòng nói ở đâu</span><span class="at" id="rAt">00:00</span></div>
+      <div class="density" id="density"></div>
+      <input type="range" class="scrub" id="scrub" min="0" max="100" step="0.1" value="0" aria-label="Vị trí trong buổi phát">
+      <div class="marks" id="marks"></div>
+    </div>
+
+    <div class="audience">
+      <div class="h"><span class="eyebrow">Khán phòng lúc đó</span><span class="mono muted" id="rCount">—</span></div>
+      <div id="rPit"><div class="quiet">Bấm phát — bình luận sẽ hiện theo đúng giây của video.</div></div>
+    </div>
+
+    <div style="margin-top:18px">
+      <h2 id="rTitle">Buổi đã lưu</h2>
+      <div class="chips" style="margin-top:12px">
+        <span class="chip" id="rDur">—</span>
+        <span class="chip">2.847 lượt xem</span>
+        <span class="chip">Nguồn ngoài · chưa neo chuỗi</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KHO LƯU -->
+<section class="view" id="archive">
+  <div class="wrap" style="max-width:1400px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
+      <div class="yt .ava" style="width:46px;height:46px;border-radius:50%;
+        background:linear-gradient(150deg,#3a3a48,#22222c);flex-shrink:0"></div>
+      <div>
+        <h2 style="font-size:20px;color:#fff">Kho lưu buổi phát</h2>
+        <div style="color:#aaa;font-size:12.5px;margin-top:2px">
+          Đồng bộ tự động từ kênh YouTube chính chủ · <span id="archCount">—</span>
+        </div>
+      </div>
+      <a href="https://www.youtube.com/@ChristinaHuynh-r7o/streams" target="_blank"
+         rel="noopener" class="chip" style="margin-left:auto;color:var(--gold)">
+        Xem trên YouTube ↗</a>
+    </div>
+
+    <div class="yt-tabs">
+      <button class="on" data-sort="new">Mới nhất</button>
+      <button data-sort="pop">Xem nhiều nhất</button>
+      <button data-sort="long">Dài nhất</button>
+    </div>
+
+    <div class="yt-grid" id="grid"></div>
+  </div>
+</section>
+
+<!-- TIN -->
+<section class="view" id="news">
+  <div class="wrap" style="max-width:700px">
+
+    <div class="fb-head">
+      <div class="fb-cover"></div>
+      <div class="fb-id">
+        <div class="fb-ava">CN</div>
+        <div class="who">
+          <h2>Christina Nguyen</h2>
+          <div class="sub"><span id="fbFollowers">389K</span> người theo dõi</div>
+        </div>
+      </div>
+      <div class="fb-tabs">
+        <button class="on">Bài viết</button>
+      </div>
+    </div>
+
+    <div id="posts"></div>
+
+    <div class="warnbox" id="fbNote" style="margin-top:6px">
+      <b>Nguồn dữ liệu.</b> Bài viết đồng bộ từ Trang Facebook chính chủ.
+      Cần <b>token chỉ-đọc từ chủ Trang</b> mới lấy tự động được (ADR-012) —
+      hiện đang hiển thị dữ liệu mẫu.
+      <a href="https://www.facebook.com/ChristinaNguyen.trangchinh" target="_blank"
+         rel="noopener" style="color:var(--gold)"> Mở Trang trên Facebook ↗</a>
+    </div>
+  </div>
+</section>
+
+<!-- ĐIỀU HÀNH — chỉ Chủ Thể -->
+<section class="view" id="studio">
+  <div class="wrap" style="max-width:760px">
+    <div id="studioGate" class="gatebox">
+      <div style="font-size:30px;margin-bottom:12px">🔒</div>
+      <h2>Không có quyền truy cập</h2>
+      <p class="muted" style="font-size:13px;margin-top:9px">
+        Tài khoản hiện tại không được phép mở khu vực này.</p>
+      <button class="btn btn-ghost btn-block" style="margin-top:20px" data-go="home">Về trang chủ</button>
+    </div>
+
+    <div id="studioBody" style="display:none">
+      <div class="studio-bar">
+        <div class="who">Đang điều hành: <b id="coreWho">—</b></div>
+        <button class="panic" id="panic">Đóng bình luận</button>
+      </div>
+
+      <h2 style="font-size:22px;margin-bottom:5px">Quản lý kênh</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:16px">
+        Đối chiếu từng kênh trước khi gắn nhãn xác minh. Mỗi lần đối chiếu được ghi lại
+        kèm ngày và người thực hiện.</p>
+      <div id="chanAdmin" style="margin-bottom:16px"></div>
+
+      <details class="phase" style="margin-bottom:14px">
+        <summary><span class="num">+</span><span class="nm">Thêm kênh</span></summary>
+        <div class="body" style="padding-top:12px">
+          <div style="display:grid;gap:9px">
+            <select id="npPlat" style="background:var(--riser-2);border:1px solid var(--rule);
+              border-radius:10px;padding:11px 12px;color:var(--ink);font:inherit;font-size:13px">
+              <option value="youtube">YouTube</option>
+              <option value="facebook">Facebook</option>
+              <option value="tiktok">TikTok</option>
+              <option value="other">Khác</option>
+            </select>
+            <input id="npUrl" placeholder="Dán link kênh, ví dụ https://www.youtube.com/@ten-kenh"
+              style="background:var(--riser-2);border:1px solid var(--rule);border-radius:10px;
+              padding:11px 12px;color:var(--ink);font:inherit;font-size:13px">
+            <input id="npName" placeholder="Tên hiển thị (bỏ trống thì lấy từ link)"
+              style="background:var(--riser-2);border:1px solid var(--rule);border-radius:10px;
+              padding:11px 12px;color:var(--ink);font:inherit;font-size:13px">
+            <button class="btn btn-gold" id="npAdd">Thêm kênh</button>
+            <div id="npMsg" style="font-size:12px;color:var(--faint)"></div>
+          </div>
+        </div>
+      </details>
+
+      <details class="phase" style="margin-bottom:26px">
+        <summary><span class="num">⟳</span><span class="nm">Tự động kiểm tra</span>
+          <span class="prog" id="wStat">tắt</span></summary>
+        <div class="body" style="padding-top:12px">
+          <label class="chk"><input type="checkbox" id="wOn">
+            <span class="tx">Bật bộ theo dõi tự động
+              <small>Nhịp thích ứng: 5 phút khi im ắng · 10 giây khi có kênh live · 3 giây ngay sau khi phát hiện sập</small></span></label>
+          <div id="wLog" style="margin-top:12px;font-family:var(--mono);font-size:11px;
+            color:var(--faint);max-height:150px;overflow-y:auto;line-height:1.9"></div>
+          <div class="warnbox" style="margin-top:12px">
+            <b>Bản mẫu chạy giả lập.</b> Trình duyệt không gọi thẳng được API của YouTube/Facebook
+            (chặn CORS), nên bộ theo dõi thật phải chạy ở máy chủ.
+            Mã nguồn có sẵn: <span class="mono">09_runtime/workers/channel-watcher/</span>
+          </div>
+        </div>
+      </details>
+      <div class="warnbox" style="margin-bottom:30px">
+        <b>Trước khi bấm "Đã đối chiếu":</b> mở kênh, kiểm tra ngày lập, số người theo dõi,
+        lịch sử đăng, và đối chiếu chéo với ít nhất một kênh chính chủ khác đã xác nhận.
+        Gắn nhãn sai còn nguy hiểm hơn không gắn nhãn — người xem sẽ tin vào nó.
+      </div>
+
+      <h2 style="font-size:22px;margin-bottom:5px">Quy trình chuẩn</h2>
+      <p class="muted" style="font-size:13px;margin-bottom:20px">
+        Tám pha của một buổi phát. Đánh dấu khi làm xong — trạng thái lưu lại trên máy này.</p>
+      <div id="phases"></div>
+
+      <div style="margin-top:26px;padding:16px;border:1px solid var(--rule);border-radius:12px">
+        <span class="eyebrow">Ba việc hằng tuần không được bỏ</span>
+        <div style="margin-top:11px;font-size:13px;line-height:1.9">
+          1. Khôi phục thử backup — backup chưa từng thử là backup không tồn tại<br>
+          2. Dọn hàng đợi kiểm duyệt<br>
+          3. Xem có buổi nào ở trạng thái <span class="mono">failed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TÀI KHOẢN -->
+<section class="view" id="me">
+  <div class="wrap">
+    <div class="idcard" id="guestCard">
+      <div class="av">?</div>
+      <h2>Chưa đăng nhập</h2>
+      <p class="muted" style="font-size:13px;margin-top:8px">Đăng nhập để bình luận và nhận thông báo khi có buổi phát.</p>
+      <button class="btn btn-gold btn-block" style="margin-top:20px" id="signin">Tiếp tục với Google</button>
+      <p class="muted" style="font-size:11px;margin-top:14px;line-height:1.6">
+        Chỉ dùng để bình luận. Hub App không lưu mật khẩu.</p>
+    </div>
+    <div class="idcard" id="userCard" style="display:none">
+      <div class="av" style="color:var(--gold)">H</div>
+      <h2>Hoà Nghệ An</h2>
+      <p class="muted" style="font-size:12.5px;margin-top:6px">@hoanghean · tham gia từ 06/2026</p>
+    </div>
+    <div class="menu">
+      <button id="signout" style="display:none"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Đăng xuất<span class="tail">Đổi tài khoản</span></button>
+      <button><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Bình luận của tôi<span class="tail">12</span></button>
+      <button><svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>Thông báo<span class="tail">Bật</span></button>
+      <button><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M16 15h2"/></svg>Ví đã kết nối<span class="tail">Chưa có</span></button>
+      <button><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Quy tắc khán phòng<span class="tail">›</span></button>
+    </div>
+  </div>
+</section>
+
+</div><!-- /main -->
+
+<!-- ══ PANEL PHẢI ══ -->
+<aside id="panel">
+  <div class="ph"><span class="eyebrow" id="panelTitle">Bình luận</span>
+    <button id="panelClose" aria-label="Đóng"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button></div>
+  <div class="ptabs" id="ptabs"></div>
+  <div class="pb" id="panelBody"></div>
+  <div class="pf"><input placeholder="Nói gì đó…" aria-label="Bình luận"><button>Gửi</button></div>
+</aside>
+
+<!-- Khung phát bay giữa sân khấu và góc màn hình. Không nạp lại iframe. -->
+<div id="stagePlayer" class="hidden">
+  <div class="hold"><div id="pLive"></div></div>
+  <div class="pstate load"><div><div class="sp"></div></div></div>
+  <div class="pstate err"><div>
+    <div class="code" data-code>—</div>
+    <h4 data-title>Trình phát chưa sẵn sàng</h4>
+    <p data-msg></p>
+    <a class="out" data-out href="#" target="_blank" rel="noopener">Mở trên YouTube ↗</a>
+  </div></div>
+  <div class="ovl tl"><span class="livepill"><i></i>Trực tiếp</span></div>
+  <div class="ovl tr srcpill" id="lcount">412 xem</div>
+  <div class="ovl bl"><span class="srcpill">▸ Nguồn: YouTube</span></div>
+  <div class="minibar">
+    <span class="t" id="miniTitle">Đang phát trực tiếp</span>
+    <button id="miniExpand" aria-label="Về sân khấu"><svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+    <button id="miniClose" aria-label="Đóng"><svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>
+</div>
+
+<!-- Bảng chọn tài khoản — mô phỏng màn hình Google.
+     Vai trò do MÁY CHỦ quyết sau khi xác minh danh tính, không do giao diện. -->
+<div id="gpick" style="position:fixed;inset:0;z-index:70;display:none;
+     background:rgba(0,0,0,.66);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;color:#202124;border-radius:14px;max-width:390px;width:100%;
+       overflow:hidden;font-family:system-ui,-apple-system,sans-serif">
+    <div style="padding:22px 24px 14px;border-bottom:1px solid #e8eaed">
+      <div style="font-size:19px">Chọn một tài khoản</div>
+      <div style="font-size:13px;color:#5f6368;margin-top:4px">để tiếp tục tới Hub App</div>
+    </div>
+    <div id="gaccts"></div>
+    <div style="padding:12px 24px 20px">
+      <button id="gcancel" style="color:#1a73e8;font-size:14px;padding:8px 0">Huỷ</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /shell -->
+
+<nav id="tabs">
+  <button data-go="home" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 10l9-7 9 7v10a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Trang chủ</span></button>
+  <button data-go="live"><span class="dot"></span><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><path d="M6.3 6.3a8 8 0 000 11.4M17.7 17.7a8 8 0 000-11.4"/></svg><span>Trực tiếp</span></button>
+  <button data-go="video"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M10 9.5l5 2.5-5 2.5z"/></svg><span>Video</span></button>
+  <button data-go="news"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8M8 13h8"/></svg><span>Tin</span></button>
+  <button data-go="me"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0115 0"/></svg><span>Cá nhân</span></button>
+</nav>
+
+<script>
+const VID='YCOWBIDvsps';
+/* Trợ giúp an toàn — bài học từ v9–v11: một getElementById(null).innerHTML
+   là đủ để giết cả script và làm trắng toàn bộ giao diện. */
+const $=id=>document.getElementById(id);
+const setHTML=(id,h)=>{const e=$(id);if(e)e.innerHTML=h;return !!e};
+const setTXT=(id,t)=>{const e=$(id);if(e)e.textContent=t;return !!e};
+const FALLBACK_DUR=3600;   /* nếu nguồn ngoài không trả về được độ dài */
+
+/* ═══ KHUNG PHÁT NỔI (Spotify mini player) ═══
+   Đặt khung phát bằng toạ độ thay vì di chuyển trong DOM —
+   di chuyển DOM sẽ khiến iframe nạp lại và mất vị trí đang phát. */
+const SP=document.getElementById('stagePlayer');
+let spMode='hidden';           // hidden | stage | mini
+function placePlayer(){
+  if(spMode==='hidden'){SP.classList.add('hidden');return}
+  SP.classList.remove('hidden');
+  if(spMode==='stage'){
+    const slot=document.getElementById('liveSlot');
+    const r=slot.getBoundingClientRect();
+    if(r.width<10){SP.classList.add('hidden');return}
+    slot.classList.add('filled');
+    SP.classList.remove('mini');
+    SP.style.cssText='left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px';
+  } else {
+    document.getElementById('liveSlot').classList.remove('filled');
+    SP.classList.add('mini');
+    const w=Math.min(300,window.innerWidth-32);
+    const bottom=window.innerWidth<1024?(64+16):20;
+    SP.style.cssText='left:'+(window.innerWidth<1024?16:(document.getElementById('side').offsetWidth+20))+
+      'px;bottom:'+bottom+'px;top:auto;width:'+w+'px;height:'+Math.round(w*9/16)+'px';
+  }
+}
+addEventListener('resize',placePlayer);
+addEventListener('scroll',placePlayer,true);
+function showStage(){spMode='stage';placePlayer()}
+function goMini(){if(spMode==='stage')spMode='mini';placePlayer()}
+function hidePlayer(){spMode='hidden';placePlayer()}
+document.getElementById('miniExpand').onclick=()=>go('live');
+document.getElementById('miniClose').onclick=()=>{hidePlayer();safe(P.live,'pauseVideo')};
+
+/* ═══ TIẾP TỤC XEM (Netflix) ═══ */
+const RESUME_KEY='hub.resume.v1';
+function loadResume(){try{return JSON.parse(localStorage.getItem(RESUME_KEY)||'{}')}catch(e){return{}}}
+function saveResume(id,sec,dur){
+  if(!dur||sec<15||sec>dur-30)return;
+  try{const r=loadResume();r[id]={sec:Math.round(sec),dur:Math.round(dur),at:Date.now()};
+    localStorage.setItem(RESUME_KEY,JSON.stringify(r))}catch(e){}
+}
+function getResume(id){const r=loadResume();return r[id]||null}
+
+/* ═══ điều hướng ═══ */
+const views=document.querySelectorAll('.view');
+function go(id){
+  views.forEach(v=>v.classList.toggle('on',v.id===id));
+  document.querySelectorAll('#side nav button,#tabs button').forEach(b=>
+    b.setAttribute('aria-current',b.dataset.go===id?'page':'false'));
+  const v=document.getElementById(id);if(v)v.scrollTop=0;
+  requestAnimationFrame(placePlayer);
+  if(id!=='replay')safe(P.replay,'pauseVideo');
+
+  if(id!=='video')pauseSlides();
+  if(id!=='live'&&id!=='replay')closePanel();
+}
+function safe(p,m,...a){try{if(p&&p[m])return p[m](...a)}catch(e){}}
+document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));
+
+/* ═══ panel phải ═══ */
+const panel=document.getElementById('panel');
+function openPanel(title,tabs,render){
+  document.getElementById('panelTitle').textContent=title;
+  const tb=document.getElementById('ptabs');
+  tb.innerHTML=tabs.map((t,i)=>`<button data-k="${t[0]}" aria-selected="${i===0}">${t[1]}</button>`).join('');
+  tb.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    tb.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected','false'));
+    b.setAttribute('aria-selected','true');render(b.dataset.k)});
+  render(tabs[0][0]);
+  panel.classList.add('on');
+}
+function closePanel(){panel.classList.remove('on')}
+document.getElementById('panelClose').onclick=closePanel;
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
+
+/* ═══ dữ liệu ═══ */
+const liveSeed=[[.03,'Trung','Bắt đầu rồi ạ'],[.05,'Hoà Nghệ An','Nghe rõ'],
+ [.11,'Mai Lâm','Phần này quan trọng đây'],[.13,'Phú','Ghi lại cái số đó với'],
+ [.135,'Thảo','Anh nói chậm chút được không'],[.15,'Bình','Chuẩn'],
+ [.25,'Quang','Vinh điểm danh'],[.34,'Hằng','Đoạn này hay quá'],
+ [.36,'Đức','Đúng chỗ nhà em'],[.365,'Linh','Nghe kỹ đoạn này mọi người'],
+ [.38,'Nam','Ghi màn hình lại rồi'],[.385,'Yến','Cảm ơn anh nhiều'],
+ [.40,'Trung','Đây là phần cần nhất'],[.52,'Thảo','Cho hỏi chỗ này với ạ'],
+ [.63,'Phú','Câu hỏi hay'],[.73,'Mai Lâm','Anh giải thích rõ ghê'],
+ [.75,'Hoà Nghệ An','Rõ rồi ạ'],[.755,'Bình','Vậy là hiểu'],
+ [.77,'Quang','Chốt lại chuẩn'],[.87,'Đức','Hẹn buổi sau'],
+ [.95,'Hằng','Cảm ơn anh'],[.97,'Linh','Buổi sau mấy giờ ạ'],[.99,'Nam','Tạm biệt']];
+const postC=[['Kiều Anh','2 ngày trước','Xem lại lần hai. Đoạn giữa đáng nghe kỹ.'],
+ ['Hải Đăng','1 ngày trước','Ai có link tài liệu anh nhắc không ạ?'],
+ ['Ngọc','20 giờ trước','Bố mình ở quê nghe xong bảo đúng thực tế.'],
+ ['Tuấn','6 giờ trước','Cảm ơn kho lưu. Không có chỗ nào giữ lại được như thế này.']];
+const chapSeed=[[0,'Mở đầu'],[.12,'Phần một'],[.36,'Trọng tâm'],[.63,'Hỏi đáp'],[.87,'Kết luận']];
+const clipSeed=[[.11,.155,'Phần này quan trọng'],[.34,.40,'Đoạn khán phòng nói nhiều nhất'],
+ [.52,.56,'Câu hỏi từ khán giả'],[.73,.78,'Giải thích rõ nhất'],[.87,.92,'Chốt lại buổi']];
+const talk=[['Hoà Nghệ An','Nghe rõ ạ'],['Trung','Đang xem từ Vinh'],['Mai Lâm','Điểm tin nhanh quá'],
+ ['Phú','Cầu Giát điểm danh'],['Thảo','Chỗ em mưa to lắm'],['Bình','Anh nói lại chỗ đó được không'],
+ ['Quang','Hôm nay nét mượt'],['Hằng','Cảm ơn anh'],['Đức','Rõ ràng dễ hiểu'],
+ ['Linh','Phần hỏi đáp mấy giờ ạ'],['Nam','Hay quá'],['Yến','Con đang nghe cùng bố']];
+
+let DUR=0,liveC=[],chapters=[],EMBED_OK=true,SIMPLE=false;
+let CUR_ID='brd_demo_01';
+/* file:// không có origin hợp lệ -> YouTube không nhận được Referer -> lỗi 153 */
+const ORIGIN=(location.protocol==='http:'||location.protocol==='https:')?location.origin:null;
+const LOCAL_FILE=!ORIGIN;
+const YT_ERR={
+  2:['Tham số không hợp lệ','Mã video hoặc tham số truyền vào trình phát không đúng.'],
+  5:['Trình phát HTML5 gặp lỗi','Nội dung không phát được bằng trình phát HTML5.'],
+  100:['Không tìm thấy video','Video đã bị gỡ hoặc để riêng tư.'],
+  101:['Chủ video không cho nhúng','Video này chỉ xem được trên YouTube.'],
+  150:['Chủ video không cho nhúng','Video này chỉ xem được trên YouTube.'],
+  153:['Thiếu thông tin nguồn (HTTP Referer)','Trang đang chạy không có domain hợp lệ để gửi cho YouTube. Đây gần như luôn là do mở tệp trực tiếp bằng file:// thay vì qua một máy chủ web.']
+};
+const fmt=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+  const p=n=>String(n).padStart(2,'0');return h?`${h}:${p(m)}:${p(x)}`:`${p(m)}:${p(x)}`};
+
+/* ═══ players (chịu lỗi) ═══ */
+const P={};let slideP=[];
+window.onYouTubeIframeAPIReady=function(){
+  const mk=(el,extra,ev)=>{try{
+    const pv=Object.assign({modestbranding:1,rel:0,playsinline:1,enablejsapi:1},extra);
+    if(ORIGIN)pv.origin=ORIGIN;          /* chỉ gửi origin khi nó thật sự hợp lệ */
+    return new YT.Player(el,{videoId:VID,playerVars:pv,events:ev})}catch(e){return null}};
+  /* Trang chủ và Trực tiếp không còn nhúng player — app chỉ dẫn đường (ADR-011).
+     Chỉ Xem lại còn nhúng bản lưu công khai của nền tảng. */
+  P.replay=mk('pReplay',{controls:1},{onReady:ready,onStateChange:onReplayState,onError:e=>fail(e.data)});
+};
+if(!LOCAL_FILE){
+  const tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';
+  tag.onerror=()=>fail(0);document.head.appendChild(tag);
+}
+
+function safeDuration(p){
+  let v=0;try{v=p&&p.getDuration&&p.getDuration()}catch(x){}
+  return (Number.isFinite(v)&&v>0)?v:FALLBACK_DUR;
+}
+function ready(e){
+  let title='';try{title=(e.target.getVideoData()||{}).title||''}catch(x){}
+  const d=safeDuration(e.target);
+  if(d!==FALLBACK_DUR||!LOCAL_FILE)markReady();
+  boot(d,title);
+}
+function markReady(){
+  document.querySelectorAll('.frame').forEach(f=>f.classList.remove('loading','error'));
+}
+let failed=false;
+function fail(code){
+  if(failed)return;failed=true;EMBED_OK=false;
+  boot(FALLBACK_DUR,'');
+  const url='https://www.youtube.com/watch?v='+VID;
+  const [t,m]=YT_ERR[code]||['Nguồn YouTube hiện không phát được',
+    'Trình phát không phản hồi. Có thể do mạng, do chặn nhúng, hoặc do trang thiếu thông tin nguồn hợp lệ.'];
+  document.querySelectorAll('.frame').forEach(f=>{
+    f.classList.remove('loading');f.classList.add('error');
+    const e=f.querySelector('.pstate.err');if(!e)return;
+    e.querySelector('[data-code]').textContent=code?('Lỗi YouTube '+code):'Không phản hồi';
+    e.querySelector('[data-title]').textContent=t;
+    e.querySelector('[data-msg]').textContent=m;
+    e.querySelector('[data-out]').href=url;
+  });
+  const w=$('warn'); if(!w){console.warn('YouTube err',code);return}
+  w.classList.add('on');
+  document.getElementById('warnTitle').textContent=
+    (code?('Lỗi YouTube '+code+' — '+t+'.'):'Không khởi tạo được trình phát YouTube.');
+  document.getElementById('warnBody').innerHTML=m+
+    ' Giao diện bên dưới vẫn chạy đầy đủ với thời lượng giả định '+
+    '<code>'+fmt(FALLBACK_DUR)+'</code>.';
+  document.getElementById('warnFix').innerHTML=
+    (LOCAL_FILE
+      ? 'Trang đang chạy từ <code>'+location.protocol+'</code> nên <code>location.origin</code> không hợp lệ. Chạy qua máy chủ cục bộ:'+
+        '<ol><li>Mở thư mục chứa tệp này trong Terminal</li>'+
+        '<li><code>python -m http.server 8080</code></li>'+
+        '<li>Mở <code>http://localhost:8080/'+location.pathname.split('/').pop()+'</code></li></ol>'+
+        '<p style="margin-top:8px">Hoặc dùng extension Live Server của VS Code.</p>'
+      : 'Trang đang chạy từ <code>'+ORIGIN+'</code>. Nếu vẫn lỗi, thử một video công khai khác để loại trừ khả năng video này tắt quyền nhúng.')+
+    '<p style="margin-top:9px"><a href="'+url+'" target="_blank" rel="noopener">Mở video trên YouTube ↗</a></p>';
+}
+/* ═══ CHẾ ĐỘ NHÚNG ĐƠN GIẢN ═══
+   Mở bằng file:// thì IFrame API không dùng được (lỗi 153), nhưng iframe
+   thường vẫn phát bình thường. Bỏ API, phát video như thường, và để thanh
+   thời gian điều khiển bình luận đồng bộ bằng tay. */
+const EMBED='https://www.youtube.com/embed/'+VID;
+const IFRAME_ATTRS='frameborder="0" allow="accelerometer; autoplay; clipboard-write; '+
+  'encrypted-media; gyroscope; picture-in-picture; web-share" '+
+  'referrerpolicy="strict-origin-when-cross-origin" allowfullscreen';
+function plainEmbed(id,params){
+  const el=document.getElementById(id);if(!el)return null;
+  const box=document.createElement('div');
+  box.innerHTML='<iframe src="'+EMBED+'?'+params+'" style="position:absolute;inset:0;width:100%;height:100%;border:0" '+IFRAME_ATTRS+'></iframe>';
+  const fr=box.firstChild;el.replaceWith(fr);return fr;
+}
+function simpleMode(){
+  SIMPLE=true;
+  document.querySelectorAll('.frame').forEach(f=>f.classList.remove('loading','error'));
+  plainEmbed('pReplay','rel=0&modestbranding=1&playsinline=1');
+  boot(FALLBACK_DUR,'');
+  const w=$('warn'); if(!w)return;
+  w.classList.add('on','info');
+  document.getElementById('warnTitle').textContent='Video phát bình thường — đồng bộ tự động cần localhost.';
+  document.getElementById('warnBody').innerHTML=
+    'Trang đang chạy từ <code>'+location.protocol+'</code> nên không có domain hợp lệ để gửi cho YouTube '+
+    '(nguyên nhân của lỗi <code>153</code>). Trình phát vẫn chạy, nhưng trang không đọc được vị trí phát, '+
+    'nên bình luận không tự chảy theo video.';
+  document.getElementById('warnFix').innerHTML=
+    '<b style="color:var(--ink)">Vẫn xem được ngay:</b>'+
+    'Vào mục <a href="#" data-go="replay">Xem lại</a> rồi kéo thanh thời gian — bình luận khán phòng hiện theo đúng giây bạn kéo tới.'+
+    '<div class="fix" style="border-color:rgba(212,175,55,.2)"><b style="color:var(--ink)">Để đồng bộ chạy tự động:</b>'+
+    '<ol><li>Mở thư mục chứa tệp này trong Terminal</li>'+
+    '<li><code>python -m http.server 8080</code></li>'+
+    '<li>Mở <code>http://localhost:8080/'+(location.pathname.split('/').pop()||'index.html')+'</code></li></ol></div>';
+  w.querySelectorAll('[data-go]').forEach(b=>b.onclick=e=>{e.preventDefault();go(b.dataset.go)});
+}
+
+/* đặt khung về trạng thái đang tải ngay từ đầu */
+document.querySelectorAll('.frame').forEach(f=>f.classList.add('loading'));
+/* QUAN TRỌNG: hoãn sang tick sau. boot() gọi buildDensity() vốn dùng các const
+   khai báo ở cuối script — gọi thẳng ở đây sẽ vướng temporal dead zone. */
+if(LOCAL_FILE) setTimeout(simpleMode,0);
+else setTimeout(()=>{if(!DUR)fail(0)},6000);
+
+function boot(dur,title){
+  if(DUR)return;DUR=dur;
+  liveC=liveSeed.map(([f,n,t])=>[Math.round(f*DUR),n,t]);
+  chapters=chapSeed.map(([f,t])=>[Math.round(f*DUR),t]);
+  if(title)['hTitle','lTitle','rTitle'].forEach(id=>document.getElementById(id).textContent=title);
+  document.getElementById('rDur').textContent=fmt(DUR);
+  buildDensity();buildMarks();buildRail();buildRecent();buildGrid();buildFeed();
+}
+
+/* ═══ TRỰC TIẾP ═══ */
+let ti=0,liveLog=[],heads=412,liveTimer=null;
+function pushTalk(){
+  const [nm,tx]=talk[ti++%talk.length];
+  liveLog.push([nm,tx]);if(liveLog.length>40)liveLog.shift();
+  if(panel.classList.contains('on')&&panel.dataset.k==='chat')renderChat();
+}
+function onLiveState(e){
+  if(e.data===YT.PlayerState.PLAYING&&spMode==='hidden')showStage();
+  if(e.data===YT.PlayerState.PLAYING){
+    if(!liveTimer)liveTimer=setInterval(()=>{
+      pushTalk();heads+=Math.round((Math.random()-.45)*6);
+      setTXT('hcount',heads+' xem');
+      setTXT('lcount',heads+' xem');
+      setTXT('ccount',heads);
+    },2600);
+  } else {clearInterval(liveTimer);liveTimer=null}
+}
+/* đồng hồ buổi phát — bản mẫu đếm từ khi mở app */
+let sessionSecs=0;
+setInterval(()=>{
+  if(!liveChan())return;
+  sessionSecs++;
+  const e=document.getElementById('elapsed');
+  if(e)e.textContent=fmt(sessionSecs);
+},1000);
+function renderChat(){
+  document.getElementById('panelBody').innerHTML=
+   `<div class="pinned"><div class="tagline">Chủ Thể ghim</div>Khán phòng đang mở. Gửi câu hỏi vào đây nhé.</div>`+
+   (liveLog.slice(-24).map(([n,t])=>`<div class="entry"><div class="av">${n[0]}</div><div>
+     <div class="l"><span class="n">${n}</span><span class="t">vừa xong</span></div>
+     <div class="x">${t}</div></div></div>`).join('')||'<div class="quiet">Khán phòng đang lặng.</div>');
+  const b=document.getElementById('panelBody');b.scrollTop=b.scrollHeight;
+}
+
+/* ═══ XEM LẠI ═══ */
+const densEl=document.getElementById('density'),scrub=document.getElementById('scrub');
+function buildDensity(){
+  if(!densEl)return;
+  const B=60,d=new Array(B).fill(0);
+  liveC.forEach(([t])=>{d[Math.min(B-1,Math.floor(t/DUR*B))]++});
+  const pk=Math.max(1,...d);
+  densEl.innerHTML=d.map((n,i)=>
+   `<i data-f="${i/B}" class="${n>=2?'hot':''}" style="height:${Math.max(2,n/pk*26)}px"></i>`).join('');
+  densEl.querySelectorAll('i').forEach(b=>b.onclick=()=>seek(+b.dataset.f*DUR));
+}
+function buildMarks(){
+  if(!$('marks'))return;
+  document.getElementById('marks').innerHTML=chapters.map(([t,x])=>
+   `<button data-t="${t}"><span class="mono" style="color:var(--faint);margin-right:6px">${fmt(t)}</span>${x}</button>`).join('');
+  document.querySelectorAll('#marks button').forEach(b=>b.onclick=()=>seek(+b.dataset.t));
+}
+let seekT=null;
+function seek(sec){
+  sec=Math.max(0,Math.round(sec));
+  paint(sec);saveResume(CUR_ID,sec,DUR);
+  if(SIMPLE){
+    clearTimeout(seekT);          /* hoãn 450ms để kéo thanh không giật */
+    seekT=setTimeout(()=>{
+      const f=document.querySelector('#replay .frame iframe');
+      if(f)f.src=EMBED+'?rel=0&modestbranding=1&playsinline=1&autoplay=1&start='+sec;
+    },450);
+    return;
+  }
+  safe(P.replay,'seekTo',sec,true);safe(P.replay,'playVideo');
+}
+function paint(sec){
+  if(!DUR)return;
+  document.getElementById('rAt').textContent=fmt(sec);
+  scrub.value=(sec/DUR*100).toFixed(1);
+  const bars=densEl.querySelectorAll('i'),i=Math.min(bars.length-1,Math.floor(sec/DUR*bars.length));
+  bars.forEach((b,k)=>b.classList.toggle('here',k===i));
+  let cur=chapters[0]||[0,''];chapters.forEach(c=>{if(sec>=c[0])cur=c});
+  document.querySelectorAll('#marks button').forEach(b=>b.classList.toggle('on',+b.dataset.t===cur[0]));
+  const W=Math.max(12,DUR*.05),win=liveC.filter(([t])=>t<=sec&&t>sec-W);
+  document.getElementById('rCount').textContent=win.length?win.length+' đang nói':'—';
+  document.getElementById('rPit').innerHTML=win.length
+   ?win.map(([t,n,x])=>`<div class="msg"><span class="at">${fmt(t)}</span><span class="nm">${n}</span>${x}</div>`).join('')
+   :'<div class="quiet">Khán phòng lặng lúc này.</div>';
+}
+scrub.oninput=e=>{if(DUR)seek(+e.target.value/100*DUR)};
+let rTimer=null;
+function onReplayState(e){
+  if(e.data===YT.PlayerState.PLAYING){
+    if(!rTimer)rTimer=setInterval(()=>{const t=safe(P.replay,'getCurrentTime');
+      if(typeof t==='number'){paint(t);saveResume(CUR_ID,t,DUR)}},400);
+  } else {clearInterval(rTimer);rTimer=null}
+}
+
+/* ═══ Danh sách ═══ */
+function buildRail(){
+  if(!$('rail'))return;      /* dải "đoạn đáng chú ý" đã bỏ khỏi trang chủ ở v10 */
+  document.getElementById('rail').innerHTML=clipSeed.map(([a,b,t],i)=>{
+    const h=Array.from({length:10},()=>Math.round(3+Math.random()*7));
+    return `<div class="clip" data-seek="${Math.round(a*DUR)}" tabindex="0" role="button">
+     <div class="th"><span class="n">${String(i+1).padStart(2,'0')}</span>
+      <span class="len">${fmt((b-a)*DUR)}</span>
+      <div class="heat">${h.map(v=>`<i style="height:${v*1.3}px"></i>`).join('')}</div></div>
+     <p>${t}</p></div>`}).join('');
+  document.querySelectorAll('#rail .clip').forEach(c=>c.onclick=()=>{
+    CUR_ID='brd_demo_01';go('replay');seek(+c.dataset.seek)});
+}
+function progHtml(id){
+  const r=getResume(id);if(!r)return'';
+  return '<div class="progline"><i style="width:'+Math.min(100,r.sec/r.dur*100).toFixed(1)+'%"></i></div>';
+}
+function resumeHtml(id){
+  const r=getResume(id);if(!r)return'';
+  return '<span class="resume">▸ Tiếp tục ' + fmt(r.sec) + '</span>';
+}
+function openReplay(id){
+  CUR_ID=id;go('replay');
+  const r=getResume(id);
+  seek(r?r.sec:0);
+  const rb=$('resumeBar');
+  if(rb)rb.style.display=r?'flex':'none';
+  if(rb&&r)setTXT('resumeAt',fmt(r.sec));
+}
+function buildRecent(){
+  if(!$('recent'))return;
+  document.getElementById('recent').innerHTML=[0,1,2].map(i=>{
+   const id='brd_demo_0'+(i+1);
+   return `<div class="row" data-id="${id}" tabindex="0" role="button">
+    <div class="th"><span class="len">${fmt(DUR)}</span>${progHtml(id)}</div>
+    <div><h3>Buổi phát ${['hôm nay','hôm qua','02/08'][i]}</h3>
+     <div class="meta"><span>${['06/08','05/08','02/08'][i]}</span>
+      <span>${['2.847','1.930','1.602'][i]} xem</span>${resumeHtml(id)}</div>
+    </div></div>`}).join('');
+  document.querySelectorAll('#recent .row').forEach(r=>r.onclick=()=>openReplay(r.dataset.id));
+}
+/* ═══ KHO LƯU — nguồn dữ liệu ═══
+   Thật: worker ở máy chủ đọc RSS của kênh (miễn phí, không hạn mức) rồi ghi vào
+   bảng `objects`; app chỉ gọi GET /api/archive.
+   Bản mẫu: dữ liệu mẫu + link tới trang /streams thật.
+   Mã nguồn worker: 09_runtime/workers/channel-watcher/ */
+const YT_CHANNEL_ID='UCHr8UMJO-hfheslXOBbVpyQ';
+const YT_STREAMS='https://www.youtube.com/@ChristinaHuynh-r7o/streams';
+const YT_RSS='https://www.youtube.com/feeds/videos.xml?channel_id='+YT_CHANNEL_ID;
+let ARCHIVE=[];
+
+async function loadArchive(){
+  /* Sản phẩm thật — worker đã ghi sẵn vào database:
+       ARCHIVE = await (await fetch('/api/archive?channel='+YT_CHANNEL_ID)).json();
+     Mỗi mục có video_id, nên ảnh thumbnail lấy thẳng từ YouTube:
+       https://i.ytimg.com/vi/<video_id>/hqdefault.jpg   (không cần API key)
+     Bản mẫu chưa có video_id thật nên dùng ô giữ chỗ cùng tỉ lệ. */
+  const raw=[
+    ['Christina Nguyen đang phát trực tiếp!','8:28:55',3100000,1],
+    ['Christina Nguyen đang phát trực tiếp!','3:15:19', 188000,5],
+    ['Christina Nguyen đang phát trực tiếp!','3:57:29', 173000,5],
+    ['Christina Nguyen đang phát trực tiếp!','11:54:46',2400000,7],
+    ['Christina Nguyen đang phát trực tiếp!','9:34:29', 940000,9],
+    ['Christina Nguyen đang phát trực tiếp!','3:01:45', 612000,11],
+    ['Christina Nguyen đang phát trực tiếp!','6:12:08', 1400000,13],
+    ['Christina Nguyen đang phát trực tiếp!','4:45:31', 780000,16],
+    ['Christina Nguyen đang phát trực tiếp!','7:20:54', 1100000,19]
+  ];
+  /* Buổi phát trên Facebook — nhúng bằng plugin công khai, không cần token */
+  const fbItems=[{
+    id:'fb_1362512112723441',
+    platform:'facebook',
+    embed:'https://www.facebook.com/ChristinaNguyen.999999/videos/1362512112723441',
+    title:'Buổi phát trực tiếp trên Facebook',
+    duration:'—', views:0, daysAgo:0, unverified:true
+  }];
+  ARCHIVE=raw.map((r,i)=>({
+    id:'yt_demo'+i, video_id:null,          /* thật: 'dQw4w9WgXcQ' → có ảnh ngay */
+    title:r[0], duration:r[1], views:r[2], daysAgo:r[3],
+    url:YT_STREAMS, progress: i===0?9:0, platform:'youtube'
+  }));
+  ARCHIVE=[...fbItems,...ARCHIVE];
+  buildGrid();
+}
+/* 3,1 Tr · 188 N — đúng cách YouTube viết tắt trong tiếng Việt */
+function ytViews(n){
+  if(n>=1e6) return (n/1e6).toFixed(1).replace('.0','').replace('.',',')+' Tr';
+  if(n>=1e3) return Math.round(n/1e3)+' N';
+  return String(n);
+}
+function ytAgo(d){
+  if(d===0) return 'hôm nay';
+  if(d<7)   return d+' ngày trước';
+  if(d<30)  return Math.floor(d/7)+' tuần trước';
+  return Math.floor(d/30)+' tháng trước';
+}
+function durSecs(t){
+  const p=t.split(':').map(Number);
+  return p.length===3? p[0]*3600+p[1]*60+p[2] : p[0]*60+p[1];
+}
+let archSort='new';
+function buildGrid(){
+  if(!$('grid'))return;
+  if(!ARCHIVE.length){
+    setHTML('grid','<div class="yt"><div class="thumb skel"></div><div class="info">'
+      +'<div class="ava skel"></div><div class="txt" style="flex:1">'
+      +'<div class="skel" style="height:14px;margin-bottom:7px"></div>'
+      +'<div class="skel" style="height:12px;width:60%"></div></div></div></div>'.repeat(6));
+    return;
+  }
+  const list=[...ARCHIVE];
+  if(archSort==='pop')  list.sort((a,b)=>b.views-a.views);
+  if(archSort==='long') list.sort((a,b)=>durSecs(b.duration)-durSecs(a.duration));
+
+  setTXT('archCount', ARCHIVE.length+' buổi phát');
+  setHTML('grid', list.map(a=> a.platform==='facebook' ? `
+    <div class="yt">
+      <div class="thumb" style="background:#000;aspect-ratio:${a.orient==='landscape'?'16/9':'9/16'}">
+        <iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(a.embed)}&show_text=false"
+          style="position:absolute;inset:0;width:100%;height:100%;border:0" scrolling="no"
+          frameborder="0" allowfullscreen="true"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
+      </div>
+      <div class="info">
+        <div class="ava"></div>
+        <div class="txt">
+          <div class="ttl">${a.title}</div>
+          <div class="chan-nm">Christina Nguyen · Facebook</div>
+          <div class="meta2">${a.unverified
+            ? '<span style="color:var(--live)">⚠ trang chưa đối chiếu</span>'
+            : 'Đã đối chiếu'}</div>
+        </div>
+      </div>
+    </div>` : `
+    <a class="yt" href="${a.url}" target="_blank" rel="noopener">
+      <div class="thumb">
+        ${a.video_id
+          ? `<img src="https://i.ytimg.com/vi/${a.video_id}/hqdefault.jpg" alt="" loading="lazy">`
+          : `<div class="ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 7l9 5-9 5z"/></svg></div>`}
+        <span class="dur">${a.duration}</span>
+        ${a.progress?`<span class="seen"><i style="width:${a.progress}%"></i></span>`:''}
+      </div>
+      <div class="info">
+        <div class="ava"></div>
+        <div class="txt">
+          <div class="ttl">${a.title}</div>
+          <div class="chan-nm">Christina Nguyen</div>
+          <div class="meta2">${ytViews(a.views)} lượt xem &nbsp;•&nbsp; Phát trực tiếp ${ytAgo(a.daysAgo)}</div>
+        </div>
+      </div>
+    </a>`).join(''));
+}
+
+/* ═══ Feed dọc ═══ */
+function buildFeed(){
+  if(!$('feed'))return;
+  document.getElementById('feed').innerHTML=clipSeed.map(([a,b,t],i)=>`
+   <div class="slide" data-i="${i}" data-a="${Math.round(a*DUR)}" data-b="${Math.round(b*DUR)}">
+    <div class="unit">
+     <div class="vplayer">
+      <div class="crop"><div id="sp${i}"></div></div>
+      <div class="veil"></div><div class="tap"></div>
+      <div class="cap">
+       <div class="core"><b>PHUONGHANG LIVE</b><span class="tick">
+        <svg viewBox="0 0 24 24" style="width:15px;height:15px"><circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span></div>
+       <h3>${t}</h3>
+       <p>Trích từ buổi phát đầy đủ.</p>
+       <span class="from">◆ ${fmt(a*DUR)} – ${fmt(b*DUR)} của buổi phát</span>
+       <button class="full" data-full="${Math.round(a*DUR)}">Xem toàn bộ buổi ›</button>
+      </div>
+      <div class="prog"><i></i></div>
+     </div>
+     <div class="arail">
+      <div class="mark">PH</div>
+      <button><span class="ic"><svg viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7 0L12 7.3l-1.8-1.7a5 5 0 00-7 7l8.8 8.7 8.8-8.7a5 5 0 000-7z"/></svg></span><small>12,8K</small></button>
+      <button data-panel="clip"><span class="ic"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span><small>532</small></button>
+      <button><span class="ic"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></span><small>1.204</small></button>
+      <button><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg></span><small>338</small></button>
+      <button class="verify"><span class="ic"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><small>Xác minh</small></button>
+     </div>
+    </div>
+   </div>`).join('');
+
+  document.querySelectorAll('.slide .full').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();go('replay');seek(+b.dataset.full)});
+
+  if(SIMPLE){
+    document.querySelectorAll('.slide').forEach(sl=>{
+      plainEmbed('sp'+sl.dataset.i,
+        'rel=0&modestbranding=1&playsinline=1&mute=1&controls=0&loop=1&playlist='+VID+
+        '&start='+sl.dataset.a+'&end='+sl.dataset.b);
+      const bar=sl.querySelector('.prog i');if(bar)bar.style.width='100%';
+    });
+    return;
+  }
+  if(!EMBED_OK)return;
+  const io=new IntersectionObserver(es=>es.forEach(en=>{
+    const i=+en.target.dataset.i;
+    if(en.isIntersecting&&en.intersectionRatio>.6){
+      if(!slideP[i]){
+        try{slideP[i]=new YT.Player('sp'+i,{videoId:VID,
+          playerVars:Object.assign(ORIGIN?{origin:ORIGIN}:{},{modestbranding:1,rel:0,playsinline:1,mute:1,controls:0,enablejsapi:1,
+            start:+en.target.dataset.a,end:+en.target.dataset.b}),
+          events:{onReady:e=>{safe(e.target,'mute');safe(e.target,'playVideo')},
+            onStateChange:e=>{if(e.data===YT.PlayerState.ENDED){
+              safe(e.target,'seekTo',+en.target.dataset.a);safe(e.target,'playVideo')}}}})}catch(x){}
+      } else safe(slideP[i],'playVideo');
+      startProg(en.target,i);
+    } else safe(slideP[i],'pauseVideo');
+  }),{root:document.getElementById('feed'),threshold:[0,.6,1]});
+  document.querySelectorAll('.slide').forEach(s=>io.observe(s));
+  document.querySelectorAll('.slide .tap').forEach((t,i)=>t.onclick=()=>{
+    const p=slideP[i];if(!p)return;
+    safe(p,'getPlayerState')===YT.PlayerState.PLAYING?safe(p,'pauseVideo'):safe(p,'playVideo')});
+}
+let progT=null;
+function startProg(slide,i){
+  clearInterval(progT);
+  const bar=slide.querySelector('.prog i'),a=+slide.dataset.a,b=+slide.dataset.b;
+  progT=setInterval(()=>{const t=safe(slideP[i],'getCurrentTime');
+    if(typeof t==='number')bar.style.width=Math.min(100,Math.max(0,(t-a)/(b-a)*100))+'%'},200);
+}
+function pauseSlides(){slideP.forEach(p=>safe(p,'pauseVideo'));clearInterval(progT)}
+
+/* ═══ Tin ═══ */
+/* ═══ TIN — đồng bộ từ Trang Facebook chính chủ ═══
+   Thật:  const r = await fetch('/api/posts?page=' + FB_PAGE_ID);
+   Worker gọi Graph API `/{page-id}/posts` — CẦN token chỉ-đọc từ chủ Trang (ADR-012).
+   Trình duyệt không gọi thẳng được (CORS + token không được lộ ra client). */
+const FB_PAGE='https://www.facebook.com/ChristinaNguyen.trangchinh';
+const FB_POSTS=[
+  {t:'2 giờ', text:'', card:'FAN CÔ HẰNG ĐIỂM DANH NÀO\n111111111111111',
+   rx:2400, cmt:418, share:1,
+   cmts:[{n:'Christina Nguyen',author:true,x:'Quý zị follow page dự phòng nhé 😎<br><a href="'+FB_PAGE+'" target="_blank" rel="noopener">facebook.com/ChristinaNguyen.666666</a>',t:'2 giờ'},
+         {n:'Bảo Ngọc',x:'Christina Nguyen dạ rồi luôn rồi cô',t:'2 giờ'}]},
+  {t:'3 giờ', text:'', card:'Ô kìa 2 cô bé KINH DOANH HỘT LEEEEEE\n😂😂😂',
+   rx:1800, cmt:264, share:0, cmts:[]},
+  {t:'1 ngày', text:'Tối nay 20:00 quý zị nhớ vào sớm nha. Kênh dự phòng đã sẵn sàng.',
+   card:null, rx:5100, cmt:932, share:74, cmts:[]}
+];
+const nfmt=n=>n>=1000?(n/1000).toFixed(1).replace('.0','').replace('.',',')+'K':String(n);
+
+function buildPosts(){
+  if(!$('posts'))return;
+  setHTML('posts', FB_POSTS.map(p=>`
+    <article class="fb-post">
+      <div class="top">
+        <div class="av">CN</div>
+        <div>
+          <div class="n">Christina Nguyen</div>
+          <div class="t">${p.t} · <svg viewBox="0 0 24 24" style="width:12px;height:12px"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18"/></svg></div>
+        </div>
+      </div>
+      ${p.text?`<div class="body">${p.text}</div>`:''}
+      ${p.card?`<div class="media"><div class="ph"><b>${p.card.replace(/\n/g,'<br>')}</b></div></div>`:''}
+      <div class="counts">
+        <span class="rx">
+          <i style="background:#1877f2;color:#fff">👍</i>
+          <i style="background:#f33e58;color:#fff">❤</i>
+          <i style="background:#f7b125;color:#fff">😆</i>
+        </span>
+        <span>${nfmt(p.rx)}</span>
+        <span class="right">
+          <span>${p.cmt} bình luận</span>${p.share?`<span>${p.share} lượt chia sẻ</span>`:''}
+        </span>
+      </div>
+      <div class="acts2">
+        <button><svg viewBox="0 0 24 24"><path d="M7 10v11H4a1 1 0 01-1-1v-9a1 1 0 011-1zM7 10l4.5-7a2 2 0 013 2.3L13.5 9H19a2 2 0 012 2.4l-1.4 7A2 2 0 0117.6 20H7z"/></svg>Thích</button>
+        <button data-panel="post"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Bình luận</button>
+        <button><svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v14"/></svg>Chia sẻ</button>
+      </div>
+      ${p.cmts.length?`<div class="cmts">
+        <span class="more">Xem thêm bình luận</span>
+        ${p.cmts.map(c=>`
+          <div class="fb-cmt">
+            <div class="av">${c.n[0]}</div>
+            <div>
+              <div class="bub">
+                ${c.author?'<div class="tag">✎ Tác giả</div>':''}
+                <div class="n">${c.n}</div>
+                <div class="x">${c.x}</div>
+              </div>
+              <div class="t2">${c.t}</div>
+            </div>
+          </div>`).join('')}
+      </div>`:''}
+    </article>`).join(''));
+}
+
+/* ═══ mở panel ═══ */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-panel]');if(!b)return;e.stopPropagation();
+  const k=b.dataset.panel;panel.dataset.k=k;
+  if(k==='chat'){openPanel('Khán phòng',[['chat','Trực tiếp']],renderChat)}
+  else if(k==='replay'){
+    openPanel('Bình luận '+(liveC.length+postC.length),
+      [['live','Lúc phát ('+liveC.length+')'],['post','Sau buổi ('+postC.length+')']],renderThread);
+  } else {
+    openPanel('Bình luận',[['post','Tất cả']],()=>renderThread('post'));
+  }
+});
+function renderThread(k){
+  const el=document.getElementById('panelBody');
+  el.innerHTML=(k==='live'
+   ?liveC.map(([t,n,x])=>`<div class="entry"><div class="av">${n[0]}</div><div>
+      <div class="l"><span class="n">${n}</span><span class="t live">▸ ${fmt(t)}</span></div>
+      <div class="x">${x}</div>
+      <div class="a"><button data-jump="${t}">Tới đoạn này</button><button>Trả lời</button></div></div></div>`)
+   :postC.map(([n,t,x])=>`<div class="entry"><div class="av">${n[0]}</div><div>
+      <div class="l"><span class="n">${n}</span><span class="t">${t}</span></div>
+      <div class="x">${x}</div>
+      <div class="a"><button>Trả lời</button><button>Báo cáo</button></div></div></div>`)).join('');
+  el.querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>{go('replay');seek(+b.dataset.jump)});
+}
+
+/* ═══ QUY TRÌNH CHUẨN CỦA CHỦ THỂ ═══
+   Bản mẫu kiểm tra email ở client — CHỈ ĐỂ DEMO.
+   Sản phẩm thật: máy chủ tra bảng `core_allowlist` rồi gán role=core.
+   Xem 02_database/migrations/003_admin_bootstrap.sql */
+const CORE_ALLOWLIST=['pandapop174@gmail.com'];
+let CORE=null;
+
+const PHASES=[
+ ['①','Chuẩn bị','trước 1 ngày',[
+  ['Tạo buổi phát, đặt lịch trong Studio'],
+  ['Đặt tiêu đề và mô tả'],
+  ['Chuẩn bị kịch bản, tư liệu, nhạc nền'],
+  ['Kiểm tra bản quyền nhạc và video tư liệu','Lớp 0 kiểm duyệt — rẻ nhất, chặn 70–80% rủi ro'],
+  ['Chọn chế độ bình luận','Chủ đề nhạy cảm → bật duyệt trước'],
+  ['Đăng bài báo trước ở mục Tin']]],
+ ['②','Kiểm tra','trước 30 phút',[
+  ['Đo tốc độ upload','BLOCKER nếu dưới 5 Mbps',1],
+  ['OBS: nguồn hình, nguồn tiếng, mức âm','BLOCKER nếu không có tiếng',1],
+  ['Khoá phát còn hạn','BLOCKER nếu hết hạn',1],
+  ['Dung lượng lưu trữ','BLOCKER nếu dưới 20 GB trống',1],
+  ['Thử phát 60 giây, xem trên trang thật','BLOCKER nếu không lên hình',1],
+  ['Đồng hồ máy chủ đúng giờ','BLOCKER nếu lệch quá 5 giây',1],
+  ['Hàng đợi kiểm duyệt đã dọn sạch'],
+  ['Điện thoại dự phòng có mạng riêng']]],
+ ['③','Mở màn','giờ G',[
+  ['Bật OBS — trạng thái tự chuyển sang live'],
+  ['Xác nhận Sảnh hiện đèn đỏ ĐANG TRỰC TIẾP'],
+  ['Xác nhận số người xem bắt đầu tăng'],
+  ['Ghim một bình luận mở đầu']]],
+ ['④','Phát sóng','trong buổi',[
+  ['Đọc bình luận, trả lời bằng lời trên sóng','Không trả lời bằng cách gõ — mất nhịp'],
+  ['Để mắt tới đèn cảnh báo kỹ thuật'],
+  ['KHÔNG sửa cấu hình khi đang phát','Có vấn đề thì xử lý theo pha ⑤',1]]],
+ ['⑤','Ứng phó','khi có sự cố',[
+  ['Spam tràn → bấm nút khẩn đóng bình luận','Dừng trước, điều tra sau',1],
+  ['Một người quấy rối → ẩn bình luận, cấm tạm 24h'],
+  ['Mất tín hiệu → KHÔNG tắt OBS','Trang tự hiện màn hình chờ. Xem RUNBOOK SC-01',1],
+  ['Lỡ nói sai → đính chính ngay, ghi lại mốc thời gian']]],
+ ['⑥','Hạ màn','cuối buổi',[
+  ['Nói lời kết, báo buổi sau'],
+  ['Tắt OBS — trạng thái chuyển ended'],
+  ['Xác nhận chuyển tiếp sang processing'],
+  ['KHÔNG tắt máy chủ','Worker đang xử lý replay',1]]],
+ ['⑦','Niêm phong','trong 24 giờ',[
+  ['Xác nhận replay xem được','Mở thử, tua tới giữa'],
+  ['Xác nhận bình luận live hiện đúng giây khi xem lại'],
+  ['Xác nhận master_sha256 đã tính'],
+  ['Xác nhận anchor_status = confirmed','Chưa xong cũng KHÔNG chặn gì — chuỗi không nằm trên đường đi chính'],
+  ['Đặt tiêu đề chuẩn cho kho lưu'],
+  ['Dọn hàng đợi kiểm duyệt còn tồn']]],
+ ['⑧','Rút kinh nghiệm','cuối tuần',[
+  ['Đọc Session Report các buổi trong tuần'],
+  ['Bình luận nào ẩn nhầm, bỏ sót cái nào → cập nhật moderation_rules'],
+  ['Sự cố nào lặp lại → thêm mục vào checklist pha ②'],
+  ['Khôi phục thử backup','Tháng một lần. Backup chưa thử là backup không tồn tại',1],
+  ['Dọn bản ghi gốc đã neo xong'],
+  ['Kiểm tra có buổi nào ở trạng thái failed']]]
+];
+
+const CHK_KEY='hub.playbook.v1';
+function loadChk(){try{return JSON.parse(localStorage.getItem(CHK_KEY)||'{}')}catch(e){return{}}}
+function saveChk(k,v){try{const c=loadChk();c[k]=v;localStorage.setItem(CHK_KEY,JSON.stringify(c))}catch(e){}}
+
+/* ── Thêm kênh ── */
+function guessFromUrl(u){
+  try{
+    const url=new URL(u);
+    if(url.hostname.includes('youtube')) return ['youtube', decodeURIComponent(url.pathname.split('/').filter(Boolean)[0]||'kênh YouTube')];
+    if(url.hostname.includes('facebook')) return ['facebook', decodeURIComponent(url.pathname.split('/').filter(Boolean)[0]||'Trang Facebook')];
+    if(url.hostname.includes('tiktok'))  return ['tiktok',  decodeURIComponent(url.pathname.split('/').filter(Boolean)[0]||'kênh TikTok')];
+    return ['other', url.hostname];
+  }catch(e){return null}
+}
+const PLATMETA={youtube:['#c00','YT','YouTube'],facebook:['#1877f2','FB','Facebook'],
+  tiktok:['#000','TT','TikTok'],other:['#3a3a48','··','Khác']};
+function addChannel(){
+  const url=($('npUrl').value||'').trim();
+  const msg=$('npMsg');
+  if(!url){msg.textContent='Cần dán link kênh.';return}
+  const g=guessFromUrl(url);
+  if(!g){msg.textContent='Link không hợp lệ.';return}
+  if(CHANNELS.some(c=>c.url===url)){msg.textContent='Kênh này đã có trong danh sách.';return}
+  const plat=$('npPlat').value||g[0];
+  const [pc,pt,label]=PLATMETA[plat]||PLATMETA.other;
+  CHANNELS.push({
+    id:'ch_'+Date.now().toString(36),
+    plat:label, pc, pt,
+    handle:($('npName').value||'').trim()||g[1],
+    url,
+    verified:false, verifiedAt:null, note:'Chưa đối chiếu',
+    status:'standby', viewers:0
+  });
+  $('npUrl').value='';$('npName').value='';
+  msg.innerHTML='<span style="color:var(--gold)">Đã thêm. Nhớ đối chiếu trước khi gắn nhãn.</span>';
+  buildChanAdmin();renderChannels();
+}
+
+function buildChanAdmin(){
+  const el=document.getElementById('chanAdmin'); if(!el)return;
+  el.innerHTML=CHANNELS.map(c=>`
+    <div class="chan" style="margin-bottom:9px">
+      <div class="plat" style="background:${c.pc};color:#fff">${c.pt}</div>
+      <div>
+        <div class="nm">${c.plat} · ${c.handle}</div>
+        <div class="st" style="font-family:var(--mono);font-size:11px">
+          ${c.verified?'<span style="color:var(--verify)">✓ đối chiếu '+c.verifiedAt+'</span>'
+                      :'<span style="color:var(--faint)">chưa đối chiếu</span>'}
+        </div>
+      </div>
+      <div class="act">
+        <a class="muted-act" href="${c.url}" target="_blank" rel="noopener"
+           style="margin-right:7px">Mở ↗</a>
+        <button class="${c.verified?'muted-act':'watch'}" data-vfy="${c.id}">
+          ${c.verified?'Gỡ nhãn':'Đã đối chiếu'}</button>
+        ${c.liveVideo?`<button class="muted-act" data-or="${c.id}" style="margin-left:7px">
+          ${c.orient==='landscape'?'Ngang 16:9':'Dọc 9:16 · mặc định'}</button>`:''}
+        <button class="muted-act" data-del="${c.id}" style="margin-left:7px;color:var(--live)">Xoá</button>
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('[data-vfy]').forEach(b=>b.onclick=()=>{
+    const c=CHANNELS.find(x=>x.id===b.dataset.vfy);
+    if(c.verified){c.verified=false;c.verifiedAt=null}
+    else{c.verified=true;c.verifiedAt=new Date().toLocaleDateString('vi-VN')}
+    buildChanAdmin();renderChannels();
+  });
+  el.querySelectorAll('[data-or]').forEach(b=>b.onclick=()=>{
+    const c=CHANNELS.find(x=>x.id===b.dataset.or);
+    c.orient = c.orient==='landscape' ? 'portrait' : 'landscape';
+    buildChanAdmin();renderChannels();
+  });
+  el.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    const i=CHANNELS.findIndex(x=>x.id===b.dataset.del);
+    if(i>=0 && confirm('Xoá kênh này khỏi danh sách?')){CHANNELS.splice(i,1);
+      buildChanAdmin();renderChannels()}
+  });
+}
+
+function buildPhases(){
+  const c=loadChk();
+  document.getElementById('phases').innerHTML=PHASES.map(([n,nm,when,items],pi)=>{
+    const done=items.filter((_,ii)=>c[pi+'.'+ii]).length;
+    return `<details class="phase" ${pi<2?'open':''}>
+      <summary><span class="num">${n}</span><span class="nm">${nm}</span>
+        <span class="prog">${done}/${items.length}</span><span class="when">${when}</span></summary>
+      <div class="body">${items.map(([t,note,blk],ii)=>`
+        <label class="chk ${blk?'blocker':''}">
+          <input type="checkbox" data-k="${pi}.${ii}" ${c[pi+'.'+ii]?'checked':''}>
+          <span class="tx">${t}${note?'<small>'+note+'</small>':''}</span>
+        </label>`).join('')}</div>
+    </details>`}).join('');
+  document.querySelectorAll('#phases input').forEach(b=>b.onchange=()=>{
+    saveChk(b.dataset.k,b.checked);
+    const d=b.closest('.phase'),all=d.querySelectorAll('input'),
+      n=[...all].filter(x=>x.checked).length;
+    d.querySelector('.prog').textContent=n+'/'+all.length;
+  });
+}
+
+function signInAs(email){
+  const isCore=CORE_ALLOWLIST.includes((email||'').toLowerCase());
+  CORE=isCore?email:null;
+  document.getElementById('guestCard').style.display='none';
+  document.getElementById('userCard').style.display='block';
+  document.getElementById('signout').style.display='flex';
+  const av=document.querySelector('#userCard .av');
+  const nm=document.querySelector('#userCard h2');
+  const sub=document.querySelector('#userCard p');
+  if(isCore){
+    av.textContent='PH';nm.textContent='PHUONGHANG LIVE';
+    sub.innerHTML='<span style="color:var(--gold)">Chủ Thể</span> · @pandapop174';
+    document.getElementById('navStudio').style.display='flex';
+    document.getElementById('studioGate').style.display='none';
+    document.getElementById('studioBody').style.display='block';
+    document.getElementById('coreWho').textContent='@pandapop174';
+    const db=$('demoBox'); if(db)db.style.display='block';
+    buildChanAdmin();buildPhases();
+  } else {
+    av.textContent='H';nm.textContent='Hoà Nghệ An';
+    sub.textContent='@hoanghean · Khán giả';
+  }
+}
+/* Bản mẫu mô phỏng màn hình chọn tài khoản của Google.
+   Trong sản phẩm thật: bấm nút → chuyển sang Google → Google trả id_token về
+   → MÁY CHỦ xác minh chữ ký, tra core_allowlist, rồi mới quyết vai trò.
+   Giao diện không hề biết trước tài khoản nào là Chủ Thể. */
+const DEMO_ACCOUNTS=[
+  ['pandapop174@gmail.com','P','#D4AF37'],
+  ['hoa.nghean@gmail.com','H','#5f6368'],
+  ['trung.vinh@gmail.com','T','#5f6368']
+];
+const gpick=$('gpick');
+if(gpick)setHTML('gaccts',DEMO_ACCOUNTS.map(([e,i,c])=>`
+  <button data-email="${e}" style="width:100%;display:flex;align-items:center;gap:14px;
+    padding:13px 24px;text-align:left;border-bottom:1px solid #f1f3f4">
+    <span style="width:34px;height:34px;border-radius:50%;background:${c};color:#fff;
+      display:grid;place-items:center;font-size:14px;font-weight:500;flex-shrink:0">${i}</span>
+    <span style="font-size:14px;color:#202124">${e}</span>
+  </button>`).join(''));
+if($('signin'))$('signin').onclick=()=>{if(gpick)gpick.style.display='flex'};
+if($('gcancel'))$('gcancel').onclick=()=>{gpick.style.display='none'};
+if(gpick)gpick.onclick=e=>{if(e.target===gpick)gpick.style.display='none'};
+document.querySelectorAll('#gaccts button').forEach(b=>b.onclick=()=>{
+  gpick.style.display='none';
+  signInAs(b.dataset.email);        /* máy chủ mới là nơi quyết vai trò */
+});
+
+
+/* ═══════════════════════════════════════════════════════════
+   BẢN ĐỒ KÊNH — app KHÔNG phát video, chỉ dẫn tới kênh chính chủ
+   Thật: một worker gọi API nền tảng vài giây một lần, cập nhật `channels`.
+   Bản mẫu: dữ liệu tĩnh + nút mô phỏng.
+   ═══════════════════════════════════════════════════════════ */
+/* Mỗi kênh phải được Chủ Thể ĐỐI CHIẾU THỦ CÔNG rồi mới hiện dấu xác minh.
+   App không tự khẳng định kênh nào là chính chủ — đó là quyết định của người vận hành,
+   có ngày tháng và ghi chú, lưu vào audit_log. */
+const CHANNELS=[
+  {id:'fb1', plat:'Facebook', pc:'#1877f2', pt:'FB',
+   handle:'ChristinaNguyen.trangchinh',
+   url:'https://www.facebook.com/ChristinaNguyen.trangchinh',
+   verified:true, verifiedAt:'06/08/2026', note:'Người vận hành xác nhận là kênh chính chủ',
+   status:'standby', viewers:0},
+  {id:'yt1', plat:'YouTube',  pc:'#c00', pt:'YT',
+   handle:'@ChristinaHuynh-r7o',
+   url:'https://www.youtube.com/@ChristinaHuynh-r7o',
+   channelId:'UCHr8UMJO-hfheslXOBbVpyQ',
+   rss:'https://www.youtube.com/feeds/videos.xml?channel_id=UCHr8UMJO-hfheslXOBbVpyQ',
+   streamsUrl:'https://www.youtube.com/@ChristinaHuynh-r7o/streams',
+   verified:true, verifiedAt:'06/08/2026', note:'Người vận hành xác nhận là kênh chính chủ',
+   status:'standby', viewers:0},
+  {id:'fb2', plat:'Facebook', pc:'#1877f2', pt:'FB',
+   handle:'ChristinaNguyen.999999',
+   url:'https://www.facebook.com/ChristinaNguyen.999999',
+   liveVideo:'https://www.facebook.com/ChristinaNguyen.999999/videos/1362512112723441',
+   verified:false, verifiedAt:null, note:'Trang khác — CHƯA đối chiếu',
+   status:'live', viewers:96000},
+  {id:'tt1', plat:'TikTok', pc:'#000', pt:'TT',
+   handle:'kênh TikTok (phiên 05/08)',
+   url:'https://www.tiktok.com/',
+   verified:false, verifiedAt:null, note:'Kênh của phiên 05/08 — đã bị dừng',
+   status:'down', viewers:0}
+];
+const fmtN=n=>n>=1e6?(n/1e6).toFixed(1).replace('.0','')+' triệu'
+            :n>=1e3?Math.round(n/1e3)+'K':String(n);
+const ST={live:'Đang phát', standby:'Sẵn sàng, chưa phát', down:'Đã bị dừng'};
+
+function liveChan(){return CHANNELS.find(c=>c.status==='live')||null}
+
+function renderChannels(){
+  const live=liveChan();
+  document.getElementById('chanCount').textContent=
+    CHANNELS.filter(c=>c.status!=='down').length+'/'+CHANNELS.length+' còn hoạt động';
+  document.getElementById('chans').innerHTML=CHANNELS.map(c=>`
+    <div class="chan ${c.status==='live'?'live':c.status==='down'?'dead':''}">
+      <div class="plat" style="background:${c.pc};color:#fff">${c.pt}</div>
+      <div>
+        <div class="nm">${c.plat} · ${c.handle}
+          ${c.verified
+            ? '<span class="tick" title="Đã đối chiếu '+c.verifiedAt+'"><svg viewBox="0 0 24 24" style="width:14px;height:14px"><circle cx="12" cy="12" r="9"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>'
+            : '<span style="font-family:var(--mono);font-size:9.5px;color:var(--faint);border:1px solid var(--rule);padding:2px 6px;border-radius:5px">chưa đối chiếu</span>'}
+        </div>
+        <div class="st ${c.status==='live'?'livetxt':''}">
+          ${ST[c.status]}${c.status==='live'?' · '+fmtN(c.viewers)+' đang xem':''}
+          ${c.verified?' · <span style="color:var(--verify)">đối chiếu '+c.verifiedAt+'</span>':''}
+        </div>
+      </div>
+      <div class="act">${c.status==='live'
+        ? `<a class="watch" href="${c.url}" target="_blank" rel="noopener" data-open="${c.id}">Vào xem ↗</a>`
+        : `<a class="muted-act" href="${c.url}" target="_blank" rel="noopener">Mở kênh ↗</a>`}</div>
+    </div>`).join('');
+  /* nút mở kênh thật; đồng thời chuyển sang khu bình luận của app */
+  document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>{
+    setTimeout(()=>go('live'),80);
+  }));
+
+  /* thanh trạng thái */
+  const sb=document.getElementById('statusbar');
+  sb.className='statusbar '+(live?'on':'off');
+  if(live){
+    document.getElementById('stBig').innerHTML=
+      '<span class="livepill"><i></i>Đang trực tiếp</span>';
+    document.getElementById('stSub').textContent=
+      live.plat+' · '+live.handle+' · '+fmtN(live.viewers)+' đang xem';
+    document.getElementById('stGo').innerHTML=
+      '<button class="btn btn-gold" data-open="'+live.id+'">Vào xem</button>';
+    document.querySelector('#stGo [data-open]').onclick=()=>go('live');
+  } else {
+    document.getElementById('stBig').textContent='Chưa có kênh nào đang phát';
+    document.getElementById('stSub').textContent='Bật thông báo để biết khi bắt đầu';
+    document.getElementById('stGo').innerHTML=
+      '<button class="btn btn-ghost" data-go="me">Bật thông báo</button>';
+    document.querySelector('#stGo [data-go]').onclick=()=>go('me');
+  }
+  const t=document.querySelector('#tabs button[data-go="live"]');
+  if(t)t.classList.toggle('hasLive',!!live);
+  renderLiveView();
+}
+
+/* Facebook có plugin nhúng CÔNG KHAI — không cần token, khác với Graph API.
+   https://www.facebook.com/plugins/video.php?href=<url đã mã hoá>          */
+function fbEmbed(videoUrl){
+  return 'https://www.facebook.com/plugins/video.php?href='
+    + encodeURIComponent(videoUrl)
+    + '&show_text=false&autoplay=false&allowfullscreen=true';
+}
+function renderLiveView(){
+  const live=liveChan();
+  const slot=document.getElementById('liveSlot');
+  const back=document.getElementById('slotBack');
+  /* Có video nhúng được thì phát ngay trong app */
+  if(live && live.liveVideo){
+    /* Mặc định khung dọc; chỉ sang ngang khi Chủ Thể chủ động đặt */
+    const wide = live.orient==='landscape';
+    slot.classList.add('filled','embed');
+    slot.classList.toggle('wide', wide);
+    const th=document.querySelector('#live .theater');
+    if(th) th.classList.toggle('stage-portrait', !wide);
+    back.style.display='none';
+    slot.innerHTML=`<div style="position:absolute;inset:0">
+        <iframe src="${fbEmbed(live.liveVideo)}" style="position:absolute;inset:0;width:100%;height:100%;border:0"
+          scrolling="no" frameborder="0" allowfullscreen="true"
+          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>
+      </div>
+      <div class="ov" style="position:absolute;bottom:11px;left:11px;z-index:3;pointer-events:none">
+        <span class="srcpill">▸ Nguồn: Facebook</span></div>`;
+    setTXT('lTitle','Buổi phát trên Facebook');
+    setTXT('platChip','Nguồn: Facebook');
+    if(!live.verified){
+      setHTML('liveAlert',`<div class="alert"><span>⚠</span><div>
+        <b>Kênh này chưa được đối chiếu.</b><br>
+        Trang <span class="mono">${live.handle}</span> chưa nằm trong danh sách đã xác minh.
+        Hãy tự kiểm tra trước khi tin.</div></div>`);
+    } else setHTML('liveAlert','');
+    return;
+  }
+  if(live){
+    slot.classList.add('filled');
+    back.style.display='block';
+    back.innerHTML=`<div style="text-align:center">
+      <div style="font-family:var(--display);font-size:15px;letter-spacing:.04em;margin-bottom:10px">
+        Buổi phát đang diễn ra trên ${live.plat}</div>
+      <a href="${live.url}" target="_blank" rel="noopener"
+         style="display:inline-flex;gap:7px;padding:11px 20px;border-radius:11px;
+                background:var(--gold);color:#0B0B0F;font-family:var(--display);
+                font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:600">
+        Mở ${live.plat} ↗</a>
+      <div style="font-size:11.5px;color:var(--faint);margin-top:12px;max-width:34ch">
+        App không phát lại nội dung. Bình luận bên dưới thuộc về app này.</div>
+    </div>`;
+    back.style.display='block';
+    document.getElementById('lTitle').textContent='Buổi phát ngày '+new Date().toLocaleDateString('vi-VN');
+    document.getElementById('platChip').textContent='Nguồn: '+live.plat;
+  } else {
+    slot.classList.remove('filled');
+    back.innerHTML='Chưa có kênh nào đang phát.<br>Xem lịch ở trang chủ.';
+    document.getElementById('lTitle').textContent='Chưa có buổi phát';
+    document.getElementById('platChip').textContent='—';
+  }
+}
+
+/* ── kênh sập → tự chuyển hướng sang kênh còn sống ── */
+function channelDown(){
+  const cur=liveChan(); if(!cur)return;
+  cur.status='down';
+  sinceDown=40;   /* 40 chu kỳ × 3 giây ≈ 2 phút kiểm tra dồn dập */
+  const next=CHANNELS.find(c=>c.status==='standby');
+  if(next){next.status='live';next.viewers=Math.round(cur.viewers*0.55)}
+  const html=`<div class="alert">
+    <span>⚠</span>
+    <div><b>Kênh ${cur.plat} đã bị dừng.</b><br>
+    ${next?'Buổi phát đang tiếp tục trên <b style="color:var(--gold)">'+next.plat+'</b> — bấm Vào xem để chuyển sang.'
+          :'Chưa có kênh thay thế. App sẽ báo ngay khi có kênh phát lại.'}</div>
+  </div>`;
+  document.getElementById('alertBox').innerHTML=html;
+  document.getElementById('liveAlert').innerHTML=html;
+  renderChannels();
+}
+function resetChannels(){
+  CHANNELS.forEach(c=>{c.status='standby';c.viewers=0});
+  const fb2=CHANNELS.find(c=>c.id==='fb2'); if(fb2){fb2.status='live';fb2.viewers=96000}
+  const tt=CHANNELS.find(c=>c.id==='tt1');  if(tt) tt.status='down';
+  document.getElementById('alertBox').innerHTML='';
+  document.getElementById('liveAlert').innerHTML='';
+  renderChannels();
+}
+/* ═══ BỘ THEO DÕI TỰ ĐỘNG ═══
+   Kiến trúc thật: 01_architecture/CHANNEL_WATCHER.md
+   Ở bản mẫu, checkChannel() là giả lập. Trong sản phẩm, worker ở máy chủ gọi
+   YouTube API / Facebook Graph / probe rồi đẩy kết quả qua WebSocket.
+   Trình duyệt KHÔNG gọi thẳng được (chặn CORS) — đó là lý do cần worker. */
+let watchTimer=null, watchLog=[], sinceDown=0;
+
+function wlog(t){
+  watchLog.unshift(new Date().toLocaleTimeString('vi-VN')+'  '+t);
+  if(watchLog.length>40)watchLog.pop();
+  setHTML('wLog',watchLog.map(l=>'<div>'+l+'</div>').join(''));
+}
+function nextInterval(){
+  if(sinceDown>0) return 3000;          /* vừa phát hiện sập → dồn dập 2 phút */
+  if(liveChan())  return 10000;         /* đang live → 10 giây */
+  return 300000;                        /* im ắng → 5 phút */
+}
+/* Giả lập một lần kiểm tra. Thay hàm này bằng lời gọi API thật ở máy chủ. */
+async function checkChannel(c){
+  await new Promise(r=>setTimeout(r,60+Math.random()*120));
+  if(c.plat==='TikTok') return {source:'reports', status:c.status};
+  if(c.plat==='Facebook'&&!window.FB_TOKEN)
+    return {source:'none', status:c.status, note:'chưa có token Trang'};
+  return {source:'api', status:c.status};
+}
+async function watchTick(){
+  for(const c of CHANNELS){
+    const r=await checkChannel(c);
+    const src=r.source==='api'?'API':r.source==='reports'?'báo cáo người xem':'—';
+    wlog(`${c.plat.padEnd(9)} ${String(r.status).padEnd(8)} nguồn: ${src}${r.note?' ('+r.note+')':''}`);
+  }
+  if(sinceDown>0)sinceDown--;
+  renderChannels();
+  watchTimer=setTimeout(watchTick,nextInterval());
+}
+function setWatcher(on){
+  clearTimeout(watchTimer);watchTimer=null;
+  setTXT('wStat',on?'đang chạy':'tắt');
+  if(!on){wlog('— đã dừng bộ theo dõi');return}
+  wlog('— bật bộ theo dõi, nhịp '+(nextInterval()/1000)+'s');
+  watchTick();
+}
+if($('wOn'))$('wOn').onchange=e=>setWatcher(e.target.checked);
+if($('npAdd'))$('npAdd').onclick=addChannel;
+
+if($('simDown'))$('simDown').onclick=channelDown;
+if($('simUp'))$('simUp').onclick=resetChannels;
+
+/* nhích số người xem cho sống động */
+setInterval(()=>{
+  const l=liveChan(); if(!l)return;
+  l.viewers=Math.max(0,l.viewers+Math.round((Math.random()-.45)*l.viewers*0.004));
+  const sub=document.getElementById('stSub');
+  if(sub&&document.getElementById('home').classList.contains('on'))
+    sub.textContent=l.plat+' · '+l.handle+' · '+fmtN(l.viewers)+' đang xem';
+},3000);
+
+renderChannels();
+loadArchive();
+buildPosts();
+document.querySelectorAll('.yt-tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.yt-tabs button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); archSort=b.dataset.sort; buildGrid();
+});
+
+if($('signout'))$('signout').onclick=()=>{
+  CORE=null;
+  document.getElementById('guestCard').style.display='block';
+  document.getElementById('userCard').style.display='none';
+  document.getElementById('signout').style.display='none';
+  document.getElementById('navStudio').style.display='none';
+  document.getElementById('studioGate').style.display='block';
+  document.getElementById('studioBody').style.display='none';
+  const db=$('demoBox'); if(db)db.style.display='none';
+  if($('wOn')){$('wOn').checked=false;setWatcher(false)}
+  if(document.getElementById('studio').classList.contains('on'))go('home');
+};
+
+/* nút khẩn */
+let panicOn=false;
+if($('panic'))$('panic').onclick=function(){
+  panicOn=!panicOn;
+  this.textContent=panicOn?'Bình luận ĐANG ĐÓNG — bấm để mở':'Đóng bình luận';
+  this.classList.toggle('armed',panicOn);
+};
+document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.filters button').forEach(x=>x.classList.remove('on'));b.classList.add('on')});
+document.querySelectorAll('.modes button[data-mode]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.modes button').forEach(x=>x.setAttribute('aria-selected','false'));
+  b.setAttribute('aria-selected','true')});
+</script>
+</body>
+</html>
